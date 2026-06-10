@@ -1,0 +1,88 @@
+import 'package:drift/drift.dart';
+import '../../data/local/database.dart';
+import '../../domain/models/product.dart';
+
+class ProductRepository {
+  final AppDatabase _db;
+
+  ProductRepository(this._db);
+
+  Stream<List<Product>> watchProducts({String? search}) {
+    final stream = search != null && search.isNotEmpty
+        ? _db.productsDao.watchProductsBySearch(search)
+        : _db.productsDao.watchAllProducts();
+    return stream.map((rows) => rows.map(_mapToModel).toList());
+  }
+
+  Future<List<Product>> getProducts() async {
+    final rows = await _db.productsDao.getAllProducts();
+    return rows.map(_mapToModel).toList();
+  }
+
+  Future<Product?> findByBarcode(String barcode) async {
+    final row = await _db.productsDao.findByBarcode(barcode);
+    return row != null ? _mapToModel(row) : null;
+  }
+
+  Future<Product?> findById(int id) async {
+    final row = await _db.productsDao.findById(id);
+    return row != null ? _mapToModel(row) : null;
+  }
+
+  Future<List<Product>> getLowStockProducts() async {
+    final rows = await _db.productsDao.getLowStockProducts();
+    return rows.map(_mapToModel).toList();
+  }
+
+  Future<int> saveProduct(Product product) async {
+    final companion = ProductsTableCompanion(
+      id: product.id == 0 ? const Value.absent() : Value(product.id),
+      serverId: Value(product.serverId),
+      barcode: Value(product.barcode),
+      name: Value(product.name),
+      categoryId: Value(product.categoryId),
+      purchasePrice: Value(product.purchasePrice),
+      sellPrice: Value(product.sellPrice),
+      stockQuantity: Value(product.stockQuantity),
+      minStockAlert: Value(product.minStockAlert),
+      imageUrl: Value(product.imageUrl),
+      isActive: Value(product.isActive),
+      updatedAt: Value(product.updatedAt),
+      syncStatus: Value(product.syncStatus.name),
+    );
+
+    if (product.id == 0) {
+      return await _db.productsDao.insertProduct(companion);
+    } else {
+      await _db.productsDao.updateProduct(companion);
+      return product.id;
+    }
+  }
+
+  Future<void> updateStock(int productId, int newStock) =>
+      _db.productsDao.updateStock(productId, newStock);
+
+  Future<void> deleteProduct(int id) =>
+      _db.productsDao.deactivateProduct(id);
+
+  Future<int> getProductCount() => _db.productsDao.getProductCount();
+
+  Product _mapToModel(ProductsTableData row) => Product(
+    id: row.id,
+    serverId: row.serverId,
+    barcode: row.barcode,
+    name: row.name,
+    categoryId: row.categoryId,
+    purchasePrice: row.purchasePrice,
+    sellPrice: row.sellPrice,
+    stockQuantity: row.stockQuantity,
+    minStockAlert: row.minStockAlert,
+    imageUrl: row.imageUrl,
+    isActive: row.isActive,
+    updatedAt: row.updatedAt,
+    syncStatus: SyncStatus.values.firstWhere(
+      (s) => s.name == row.syncStatus,
+      orElse: () => SyncStatus.pending,
+    ),
+  );
+}
