@@ -1,6 +1,14 @@
+# ─── Docker Compose — فروشگاه هوشمند ──────────────────────────────
+# سه سرویس:
+#   backend → FastAPI (پورت ۸۰۰۰)
+#   db      → PostgreSQL 15
+#   nginx   → reverse proxy + SSL
+
 version: "3.9"
 
 services:
+
+  # ─── FastAPI Backend ───────────────────────────────────────────
   backend:
     build: ./backend
     container_name: shop_crm_api
@@ -14,8 +22,9 @@ services:
       - DEBUG=false
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_healthy # صبر می‌کند تا دیتابیس آماده شود
 
+  # ─── PostgreSQL Database ───────────────────────────────────────
   db:
     image: postgres:15-alpine
     container_name: shop_crm_db
@@ -27,25 +36,27 @@ services:
       - POSTGRES_PASSWORD=shoppass
       - POSTGRES_DB=shopdb
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql/data # داده‌ها دائمی هستند
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U shop -d shopdb"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ─── Nginx Reverse Proxy ───────────────────────────────────────
   nginx:
     image: nginx:alpine
     container_name: shop_crm_nginx
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
+      - "443:443"   # HTTPS
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/certs:/etc/nginx/certs:ro # گواهی SSL
     depends_on:
       - backend
 
+# ─── Volume‌های دائمی ──────────────────────────────────────────────
 volumes:
-  pg_data:
+  pg_data: # داده‌های دیتابیس حتی بعد از restart Docker باقی می‌مانند

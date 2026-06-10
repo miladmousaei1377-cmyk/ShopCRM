@@ -2,42 +2,47 @@ import 'package:equatable/equatable.dart';
 import 'invoice_item.dart';
 import 'product.dart';
 
+/// روش‌های پرداخت قابل قبول
 enum PaymentMethod { cash, card, credit }
 
+/// وضعیت فاکتور
 enum InvoiceStatus { draft, completed, cancelled, refunded }
 
 extension PaymentMethodLabel on PaymentMethod {
+  /// برچسب فارسی روش پرداخت
   String get label {
     switch (this) {
-      case PaymentMethod.cash: return 'نقد';
-      case PaymentMethod.card: return 'کارت';
+      case PaymentMethod.cash:   return 'نقد';
+      case PaymentMethod.card:   return 'کارت';
       case PaymentMethod.credit: return 'نسیه';
     }
   }
 }
 
 extension InvoiceStatusLabel on InvoiceStatus {
+  /// برچسب فارسی وضعیت فاکتور
   String get label {
     switch (this) {
-      case InvoiceStatus.draft: return 'پیش‌نویس';
-      case InvoiceStatus.completed: return 'تکمیل شده';
-      case InvoiceStatus.cancelled: return 'لغو شده';
-      case InvoiceStatus.refunded: return 'مرجوع شده';
+      case InvoiceStatus.draft:      return 'پیش‌نویس';
+      case InvoiceStatus.completed:  return 'تکمیل شده';
+      case InvoiceStatus.cancelled:  return 'لغو شده';
+      case InvoiceStatus.refunded:   return 'مرجوع شده';
     }
   }
 }
 
+/// مدل فاکتور — شامل لیست آیتم‌ها و محاسبات مالی
 class Invoice extends Equatable {
   final int id;
   final int? serverId;
-  final String invoiceNumber;
+  final String invoiceNumber;   // شماره یکتای فاکتور
   final int? customerId;
   final String? customerName;
   final int? userId;
-  final List<InvoiceItem> items;
-  final double discount;
-  final bool isDiscountPercent;
-  final double tax;
+  final List<InvoiceItem> items; // آیتم‌های سبد خرید
+  final double discount;         // مقدار تخفیف (ریال یا درصد)
+  final bool isDiscountPercent;  // آیا تخفیف درصدی است؟
+  final double tax;              // درصد مالیات
   final PaymentMethod paymentMethod;
   final InvoiceStatus status;
   final String? notes;
@@ -62,17 +67,22 @@ class Invoice extends Equatable {
     this.syncStatus = SyncStatus.pending,
   });
 
+  /// جمع کل قبل از تخفیف و مالیات
   double get totalAmount => items.fold(0, (sum, item) => sum + item.subtotal);
 
+  /// مبلغ تخفیف به ریال
   double get discountAmount {
     if (isDiscountPercent) return totalAmount * discount / 100;
     return discount;
   }
 
+  /// مبلغ مالیات به ریال
   double get taxAmount => (totalAmount - discountAmount) * tax / 100;
 
+  /// مبلغ نهایی قابل پرداخت
   double get finalAmount => totalAmount - discountAmount + taxAmount;
 
+  /// تعداد کل اقلام (نه ردیف، بلکه مجموع quantity‌ها)
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
 
   Invoice copyWith({
@@ -111,6 +121,7 @@ class Invoice extends Equatable {
     );
   }
 
+  /// تبدیل به JSON برای ارسال به سرور
   Map<String, dynamic> toJson() => {
     'id': id,
     'server_id': serverId,
@@ -129,5 +140,6 @@ class Invoice extends Equatable {
   };
 
   @override
-  List<Object?> get props => [id, invoiceNumber, finalAmount, status, syncStatus];
+  List<Object?> get props =>
+      [id, invoiceNumber, finalAmount, status, syncStatus];
 }

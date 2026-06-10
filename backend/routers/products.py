@@ -1,3 +1,4 @@
+"""مسیرهای API مدیریت محصولات"""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
@@ -7,6 +8,7 @@ from schemas.product import ProductCreate, ProductUpdate, ProductResponse
 
 router = APIRouter(prefix="/products", tags=["products"])
 
+
 @router.get("/", response_model=List[ProductResponse])
 def list_products(
     skip: int = 0,
@@ -14,28 +16,34 @@ def list_products(
     search: str | None = None,
     db: Session = Depends(get_db),
 ):
+    """لیست محصولات فعال با قابلیت جستجو در نام"""
     q = db.query(Product).filter(Product.is_active == True)
     if search:
         q = q.filter(Product.name.ilike(f"%{search}%"))
     return q.offset(skip).limit(limit).all()
 
+
 @router.get("/barcode/{code}", response_model=ProductResponse)
 def get_by_barcode(code: str, db: Session = Depends(get_db)):
+    """پیدا کردن محصول با بارکد — برای اسکنر"""
     product = db.query(Product).filter(Product.barcode == code).first()
     if not product:
         raise HTTPException(status_code=404, detail="محصول یافت نشد")
     return product
 
+
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
+    """دریافت یک محصول با شناسه"""
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="محصول یافت نشد")
     return product
 
+
 @router.post("/", response_model=ProductResponse, status_code=201)
 def create_product(data: ProductCreate, db: Session = Depends(get_db)):
-    # بارکد تکراری؟
+    """ایجاد محصول جدید — بارکد نباید تکراری باشد"""
     if data.barcode:
         exists = db.query(Product).filter(Product.barcode == data.barcode).first()
         if exists:
@@ -46,8 +54,10 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
     db.refresh(product)
     return product
 
+
 @router.put("/{product_id}", response_model=ProductResponse)
 def update_product(product_id: int, data: ProductUpdate, db: Session = Depends(get_db)):
+    """بروزرسانی اطلاعات محصول"""
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="محصول یافت نشد")
@@ -57,10 +67,12 @@ def update_product(product_id: int, data: ProductUpdate, db: Session = Depends(g
     db.refresh(product)
     return product
 
+
 @router.delete("/{product_id}", status_code=204)
 def delete_product(product_id: int, db: Session = Depends(get_db)):
+    """حذف نرم محصول (غیرفعال کردن)"""
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="محصول یافت نشد")
-    product.is_active = False
+    product.is_active = False  # soft delete — داده حذف نمی‌شود
     db.commit()

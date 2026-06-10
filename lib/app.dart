@@ -15,39 +15,32 @@ import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/settings/printer_settings_screen.dart';
 import 'presentation/screens/reports/reports_screen.dart';
 
+/// تعریف مسیرهای ناوبری با go_router
+/// شامل redirect guard برای صفحات احراز هویت
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
   return GoRouter(
     initialLocation: authState.isLoggedIn ? '/dashboard' : '/login',
+    // بررسی وضعیت ورود قبل از هر ناوبری
     redirect: (context, state) {
       final isLoggedIn = authState.isLoggedIn;
       final isLoginRoute = state.matchedLocation == '/login';
-      if (!isLoggedIn && !isLoginRoute) return '/login';
-      if (isLoggedIn && isLoginRoute) return '/dashboard';
-      return null;
+      if (!isLoggedIn && !isLoginRoute) return '/login';   // نیاز به ورود
+      if (isLoggedIn && isLoginRoute)  return '/dashboard'; // قبلاً وارد شده
+      return null; // ادامه معمول
     },
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+
+      // Shell ریسپانسیو: NavBar موبایل یا NavRail دسکتاپ
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),
         routes: [
-          GoRoute(
-            path: '/dashboard',
-            builder: (_, __) => const DashboardScreen(),
-          ),
-          GoRoute(
-            path: '/invoice/new',
-            builder: (_, __) => const NewInvoiceScreen(),
-          ),
-          GoRoute(
-            path: '/invoices',
-            builder: (_, __) => const InvoiceListScreen(),
-          ),
-          GoRoute(
-            path: '/products',
-            builder: (_, __) => const ProductsScreen(),
-          ),
+          GoRoute(path: '/dashboard',    builder: (_, __) => const DashboardScreen()),
+          GoRoute(path: '/invoice/new',  builder: (_, __) => const NewInvoiceScreen()),
+          GoRoute(path: '/invoices',     builder: (_, __) => const InvoiceListScreen()),
+          GoRoute(path: '/products',     builder: (_, __) => const ProductsScreen()),
           GoRoute(
             path: '/products/new',
             builder: (context, state) {
@@ -62,24 +55,16 @@ final routerProvider = Provider<GoRouter>((ref) {
               return ProductFormScreen(productId: id);
             },
           ),
-          GoRoute(
-            path: '/reports',
-            builder: (_, __) => const ReportsScreen(),
-          ),
-          GoRoute(
-            path: '/settings',
-            builder: (_, __) => const SettingsScreen(),
-          ),
-          GoRoute(
-            path: '/settings/printer',
-            builder: (_, __) => const PrinterSettingsScreen(),
-          ),
+          GoRoute(path: '/reports',           builder: (_, __) => const ReportsScreen()),
+          GoRoute(path: '/settings',          builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: '/settings/printer',  builder: (_, __) => const PrinterSettingsScreen()),
         ],
       ),
     ],
   );
 });
 
+/// ریشه برنامه — MaterialApp با تم RTL
 class ShopCrmApp extends ConsumerWidget {
   const ShopCrmApp({super.key});
 
@@ -92,18 +77,18 @@ class ShopCrmApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: router,
-      // RTL همه جا
-      builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child ?? const SizedBox(),
-        );
-      },
+      // اعمال RTL در سراسر برنامه
+      builder: (context, child) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: child ?? const SizedBox(),
+      ),
     );
   }
 }
 
-/// Shell ریسپانسیو: موبایل → BottomNav | دسکتاپ → NavigationRail
+/// Shell ناوبری ریسپانسیو
+/// موبایل (عرض < ۸۰۰): NavigationBar پایین
+/// دسکتاپ (عرض >= ۸۰۰): NavigationRail کنار
 class _AppShell extends StatefulWidget {
   final Widget child;
   const _AppShell({required this.child});
@@ -115,6 +100,7 @@ class _AppShell extends StatefulWidget {
 class _AppShellState extends State<_AppShell> {
   int _selectedIndex = 0;
 
+  // مسیرهای مرتبط با هر دکمه nav
   static const _routes = [
     '/dashboard',
     '/invoice/new',
@@ -151,7 +137,9 @@ class _AppShellState extends State<_AppShell> {
     Icons.settings,
   ];
 
-  bool get _isDesktop => Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+  /// آیا روی دسکتاپ اجرا می‌شویم؟
+  bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   void _onDestinationSelected(int index) {
     setState(() => _selectedIndex = index);
@@ -162,12 +150,13 @@ class _AppShellState extends State<_AppShell> {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 800;
 
+    // ─── دسکتاپ / تبلت: NavigationRail کنار ─────────────────────
     if (_isDesktop || isWide) {
       return Scaffold(
         body: Row(
           children: [
             NavigationRail(
-              extended: isWide,
+              extended: isWide, // وقتی عریض است، برچسب‌ها هم نشان داده می‌شوند
               destinations: List.generate(
                 _routes.length,
                 (i) => NavigationRailDestination(
@@ -188,6 +177,7 @@ class _AppShellState extends State<_AppShell> {
       );
     }
 
+    // ─── موبایل: NavigationBar پایین ────────────────────────────
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: NavigationBar(

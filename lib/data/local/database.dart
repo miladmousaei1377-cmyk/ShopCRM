@@ -10,6 +10,11 @@ import 'daos/customers_dao.dart';
 
 part 'database.g.dart';
 
+/// پایگاه داده اصلی برنامه (SQLite از طریق Drift)
+///
+/// تمام داده‌ها اول اینجا ذخیره می‌شوند (offline-first).
+/// بعداً با سرور sync می‌شوند.
+/// فایل دیتابیس: shop_crm_db.sqlite
 @DriftDatabase(
   tables: [
     ProductsTable,
@@ -27,19 +32,23 @@ part 'database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  /// نسخه schema — با هر تغییر ساختار جدول باید افزایش یابد
   @override
   int get schemaVersion => 1;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
+      // اولین نصب: ایجاد همه جداول
       await m.createAll();
     },
     onUpgrade: (m, from, to) async {
-      // مایگریشن‌های آینده اینجا
+      // مایگریشن‌های آپدیت — در نسخه‌های بعدی اینجا اضافه می‌شود
+      // مثال: if (from < 2) { await m.addColumn(productsTable, productsTable.newColumn); }
     },
   );
 
+  /// باز کردن اتصال به فایل SQLite
   static QueryExecutor _openConnection() {
     return driftDatabase(name: 'shop_crm_db');
   }

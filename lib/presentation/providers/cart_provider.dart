@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 import '../../domain/models/invoice.dart';
 import '../../domain/models/invoice_item.dart';
 import '../../domain/models/product.dart';
@@ -17,16 +16,17 @@ final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   return CustomerRepository(ref.watch(databaseProvider));
 });
 
+/// وضعیت سبد خرید جاری (فاکتور در حال ثبت)
 class CartState {
-  final List<InvoiceItem> items;
-  final Customer? customer;
-  final double discount;
-  final bool isDiscountPercent;
-  final double tax;
-  final PaymentMethod paymentMethod;
-  final bool isSubmitting;
-  final String? error;
-  final int? lastInvoiceId;
+  final List<InvoiceItem> items;     // آیتم‌های سبد
+  final Customer? customer;          // مشتری انتخاب‌شده (اختیاری)
+  final double discount;             // مقدار تخفیف
+  final bool isDiscountPercent;      // نوع تخفیف: ریال یا درصد
+  final double tax;                  // درصد مالیات
+  final PaymentMethod paymentMethod; // روش پرداخت
+  final bool isSubmitting;           // در حال ثبت فاکتور
+  final String? error;               // پیام خطا
+  final int? lastInvoiceId;          // شناسه فاکتور ثبت‌شده (برای پرینت)
 
   const CartState({
     this.items = const [],
@@ -40,17 +40,21 @@ class CartState {
     this.lastInvoiceId,
   });
 
+  /// جمع کل قبل از تخفیف
   double get totalAmount => items.fold(0, (sum, item) => sum + item.subtotal);
 
+  /// مبلغ تخفیف به ریال
   double get discountAmount {
     if (isDiscountPercent) return totalAmount * discount / 100;
     return discount;
   }
 
-  double get taxAmount => (totalAmount - discountAmount) * tax / 100;
+  double get taxAmount  => (totalAmount - discountAmount) * tax / 100;
   double get finalAmount => totalAmount - discountAmount + taxAmount;
+
+  /// تعداد کل اقلام (مجموع quantity)
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
-  bool get isEmpty => items.isEmpty;
+  bool get isEmpty  => items.isEmpty;
 
   CartState copyWith({
     List<InvoiceItem>? items,
@@ -78,6 +82,7 @@ class CartState {
   }
 }
 
+/// منطق مدیریت سبد خرید
 class CartNotifier extends StateNotifier<CartState> {
   final InvoiceRepository _invoiceRepo;
   final ProductRepository _productRepo;
@@ -86,35 +91,41 @@ class CartNotifier extends StateNotifier<CartState> {
   CartNotifier(this._invoiceRepo, this._productRepo, this._customerRepo)
       : super(const CartState());
 
+  /// افزودن محصول به سبد
+  /// اگر محصول قبلاً در سبد است، فقط تعداد افزایش می‌یابد
   void addProduct(Product product, {int quantity = 1}) {
     final existing = state.items.indexWhere((i) => i.productId == product.id);
     if (existing >= 0) {
+      // محصول هست → تعداد را اضافه کن
       final updated = List<InvoiceItem>.from(state.items);
       updated[existing] = state.items[existing].copyWith(
         quantity: state.items[existing].quantity + quantity,
       );
       state = state.copyWith(items: updated);
     } else {
+      // محصول جدید → به انتهای لیست اضافه کن
       state = state.copyWith(
         items: [...state.items, InvoiceItem.fromProduct(product, quantity: quantity)],
       );
     }
   }
 
+  /// حذف یک ردیف از سبد
   void removeItem(int productId) {
     state = state.copyWith(
       items: state.items.where((i) => i.productId != productId).toList(),
     );
   }
 
+  /// تغییر تعداد یک محصول — اگر صفر شد حذف می‌شود
   void updateQuantity(int productId, int quantity) {
     if (quantity <= 0) {
       removeItem(productId);
       return;
     }
-    final updated = state.items.map((i) {
-      return i.productId == productId ? i.copyWith(quantity: quantity) : i;
-    }).toList();
+    final updated = state.items.map((i) =>
+      i.productId == productId ? i.copyWith(quantity: quantity) : i,
+    ).toList();
     state = state.copyWith(items: updated);
   }
 
@@ -128,6 +139,7 @@ class CartNotifier extends StateNotifier<CartState> {
     updateQuantity(productId, item.quantity - 1);
   }
 
+  /// تنظیم مشتری (null = بدون مشتری)
   void setCustomer(Customer? customer) {
     if (customer == null) {
       state = state.copyWith(clearCustomer: true);
@@ -136,18 +148,19 @@ class CartNotifier extends StateNotifier<CartState> {
     }
   }
 
+  /// تنظیم تخفیف
   void setDiscount(double value, {bool isPercent = false}) {
     state = state.copyWith(discount: value, isDiscountPercent: isPercent);
   }
 
-  void setPaymentMethod(PaymentMethod method) {
-    state = state.copyWith(paymentMethod: method);
-  }
+  void setPaymentMethod(PaymentMethod method) =>
+      state = state.copyWith(paymentMethod: method);
 
-  void setTax(double tax) {
-    state = state.copyWith(tax: tax);
-  }
+  void setTax(double tax) =>
+      state = state.copyWith(tax: tax);
 
+  /// ثبت نهایی فاکتور
+  /// ترتیب: ۱) ذخیره فاکتور  ۲) کاهش موجودی  ۳) ثبت بدهی نسیه
   Future<int?> submitInvoice() async {
     if (state.items.isEmpty) return null;
     state = state.copyWith(isSubmitting: true, error: null);
@@ -167,9 +180,10 @@ class CartNotifier extends StateNotifier<CartState> {
         createdAt: DateTime.now(),
       );
 
+      // ذخیره فاکتور در SQLite
       final id = await _invoiceRepo.saveInvoice(invoice);
 
-      // کاهش موجودی محصولات
+      // کاهش موجودی هر محصول فروخته‌شده
       for (final item in state.items) {
         final product = await _productRepo.findById(item.productId);
         if (product != null) {
@@ -178,7 +192,7 @@ class CartNotifier extends StateNotifier<CartState> {
         }
       }
 
-      // بدهی مشتری اگه نسیه بود
+      // اگه پرداخت نسیه بود، بدهی مشتری را بروز کن
       if (state.paymentMethod == PaymentMethod.credit && state.customer != null) {
         final customer = state.customer!;
         await _customerRepo.updateDebt(
@@ -190,21 +204,30 @@ class CartNotifier extends StateNotifier<CartState> {
       state = state.copyWith(isSubmitting: false, lastInvoiceId: id);
       return id;
     } catch (e) {
-      state = state.copyWith(isSubmitting: false, error: 'خطا در ثبت فاکتور: $e');
+      state = state.copyWith(
+        isSubmitting: false,
+        error: 'خطا در ثبت فاکتور: $e',
+      );
       return null;
     }
   }
 
-  void clearCart() {
-    state = const CartState();
-  }
+  /// پاک کردن کامل سبد برای فاکتور جدید
+  void clearCart() => state = const CartState();
 
+  /// تولید شماره فاکتور یکتا بر اساس تاریخ و میلی‌ثانیه
   String _generateInvoiceNumber() {
     final now = DateTime.now();
-    return 'INV-${now.year}${now.month.toString().padLeft(2,'0')}${now.day.toString().padLeft(2,'0')}-${now.millisecondsSinceEpoch % 10000}';
+    return 'INV-'
+        '${now.year}'
+        '${now.month.toString().padLeft(2, '0')}'
+        '${now.day.toString().padLeft(2, '0')}'
+        '-'
+        '${now.millisecondsSinceEpoch % 10000}';
   }
 }
 
+/// Provider سبد خرید — یک instance در کل اپ
 final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
   return CartNotifier(
     ref.watch(invoiceRepositoryProvider),

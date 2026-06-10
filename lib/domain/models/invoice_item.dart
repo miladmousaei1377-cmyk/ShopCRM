@@ -1,15 +1,16 @@
 import 'package:equatable/equatable.dart';
 import 'product.dart';
 
+/// یک ردیف در سبد خرید / فاکتور
 class InvoiceItem extends Equatable {
   final int? id;
   final int? invoiceId;
   final int productId;
-  final String productName;
+  final String productName;    // ذخیره نام در زمان فروش (مستقل از تغییرات بعدی محصول)
   final String? productBarcode;
-  final int quantity;
-  final double unitPrice;
-  final double discountPercent;
+  final int quantity;          // تعداد
+  final double unitPrice;      // قیمت واحد در زمان فروش
+  final double discountPercent; // درصد تخفیف روی این ردیف (جدا از تخفیف کل)
 
   const InvoiceItem({
     this.id,
@@ -22,11 +23,13 @@ class InvoiceItem extends Equatable {
     this.discountPercent = 0,
   });
 
+  /// جمع این ردیف پس از تخفیف
   double get subtotal {
     final gross = unitPrice * quantity;
     return gross - (gross * discountPercent / 100);
   }
 
+  /// مبلغ تخفیف این ردیف
   double get discountAmount => unitPrice * quantity * discountPercent / 100;
 
   InvoiceItem copyWith({
@@ -51,13 +54,14 @@ class InvoiceItem extends Equatable {
     );
   }
 
+  /// ساخت آیتم از روی یک محصول (برای افزودن به سبد)
   factory InvoiceItem.fromProduct(Product product, {int quantity = 1}) {
     return InvoiceItem(
       productId: product.id,
       productName: product.name,
       productBarcode: product.barcode,
       quantity: quantity,
-      unitPrice: product.sellPrice,
+      unitPrice: product.sellPrice, // قیمت فروش فعلی
     );
   }
 
@@ -73,5 +77,6 @@ class InvoiceItem extends Equatable {
   };
 
   @override
-  List<Object?> get props => [productId, quantity, unitPrice, discountPercent];
+  List<Object?> get props =>
+      [productId, quantity, unitPrice, discountPercent];
 }

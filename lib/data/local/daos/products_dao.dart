@@ -4,68 +4,71 @@ import '../tables/products_table.dart';
 
 part 'products_dao.g.dart';
 
+/// دسترسی به جدول محصولات در SQLite
+/// تمام عملیات CRUD محصولات از این DAO انجام می‌شود
 @DriftAccessor(tables: [ProductsTable])
-class ProductsDao extends DatabaseAccessor<AppDatabase> with _$ProductsDaoMixin {
+class ProductsDao extends DatabaseAccessor<AppDatabase>
+    with _$ProductsDaoMixin {
   ProductsDao(super.db);
 
-  // همه محصولات فعال
+  // ─── خواندن ──────────────────────────────────────────────────
+
+  /// همه محصولات فعال (یک‌بار)
   Future<List<ProductsTableData>> getAllProducts() =>
       (select(productsTable)..where((t) => t.isActive.equals(true))).get();
 
-  // جریان محصولات فعال (watch برای UI)
+  /// استریم محصولات فعال — UI با هر تغییر بروز می‌شود
   Stream<List<ProductsTableData>> watchAllProducts() =>
       (select(productsTable)..where((t) => t.isActive.equals(true))).watch();
 
-  // جستجو بر اساس نام یا بارکد
+  /// جستجو در نام یا بارکد (استریم)
   Stream<List<ProductsTableData>> watchProductsBySearch(String query) {
     final q = '%$query%';
     return (select(productsTable)
-      ..where((t) =>
-          t.name.like(q) |
-          t.barcode.like(q))
+      ..where((t) => t.name.like(q) | t.barcode.like(q))
       ..where((t) => t.isActive.equals(true)))
         .watch();
   }
 
-  // پیدا کردن با بارکد
+  /// پیدا کردن با بارکد (برای اسکن)
   Future<ProductsTableData?> findByBarcode(String barcode) =>
-      (select(productsTable)..where((t) => t.barcode.equals(barcode))).getSingleOrNull();
+      (select(productsTable)..where((t) => t.barcode.equals(barcode)))
+          .getSingleOrNull();
 
-  // پیدا کردن با ID
+  /// پیدا کردن با شناسه
   Future<ProductsTableData?> findById(int id) =>
-      (select(productsTable)..where((t) => t.id.equals(id))).getSingleOrNull();
+      (select(productsTable)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
 
-  // محصولات زیر حداقل موجودی
+  /// محصولاتی که موجودی‌شان به حداقل رسیده (برای داشبورد)
   Future<List<ProductsTableData>> getLowStockProducts() =>
       (select(productsTable)
         ..where((t) => t.isActive.equals(true))
-        ..where((t) => t.stockQuantity.isSmallerOrEqualValue(0) | t.stockQuantity.isSmallerThanExp(t.minStockAlert)))
+        ..where((t) =>
+            t.stockQuantity.isSmallerOrEqualValue(0) |
+            t.stockQuantity.isSmallerThanExp(t.minStockAlert)))
           .get();
 
-  Stream<List<ProductsTableData>> watchLowStockProducts() =>
-      (select(productsTable)
-        ..where((t) => t.isActive.equals(true))
-        ..where((t) => t.stockQuantity.isSmallerOrEqualValue(0)))
-          .watch();
+  // ─── نوشتن ───────────────────────────────────────────────────
 
-  // درج محصول جدید
+  /// درج محصول جدید — شناسه خودکار برمی‌گردد
   Future<int> insertProduct(ProductsTableCompanion product) =>
       into(productsTable).insert(product);
 
-  // بروزرسانی محصول
+  /// بروزرسانی محصول موجود
   Future<bool> updateProduct(ProductsTableCompanion product) =>
       update(productsTable).replace(product);
 
-  // بروزرسانی موجودی
+  /// فقط موجودی را بروز کن (بهینه برای بعد از فروش)
   Future<void> updateStock(int productId, int newStock) =>
       (update(productsTable)..where((t) => t.id.equals(productId)))
           .write(ProductsTableCompanion(
             stockQuantity: Value(newStock),
             updatedAt: Value(DateTime.now()),
-            syncStatus: const Value('pending'),
+            syncStatus: const Value('pending'), // نیاز به sync
           ));
 
-  // حذف (غیرفعال کردن)
+  /// حذف نرم (soft delete) — محصول غیرفعال می‌شود، حذف نمی‌شود
   Future<void> deactivateProduct(int id) =>
       (update(productsTable)..where((t) => t.id.equals(id)))
           .write(ProductsTableCompanion(
@@ -74,11 +77,15 @@ class ProductsDao extends DatabaseAccessor<AppDatabase> with _$ProductsDaoMixin 
             syncStatus: const Value('pending'),
           ));
 
-  // همه محصولات pending برای sync
-  Future<List<ProductsTableData>> getPendingProducts() =>
-      (select(productsTable)..where((t) => t.syncStatus.equals('pending'))).get();
+  // ─── Sync ─────────────────────────────────────────────────────
 
-  // بروزرسانی syncStatus
+  /// محصولاتی که هنوز به سرور ارسال نشده‌اند
+  Future<List<ProductsTableData>> getPendingProducts() =>
+      (select(productsTable)
+        ..where((t) => t.syncStatus.equals('pending')))
+          .get();
+
+  /// بعد از sync موفق، serverId و وضعیت را ثبت کن
   Future<void> markAsSynced(int id, int serverId) =>
       (update(productsTable)..where((t) => t.id.equals(id)))
           .write(ProductsTableCompanion(
@@ -86,7 +93,9 @@ class ProductsDao extends DatabaseAccessor<AppDatabase> with _$ProductsDaoMixin 
             syncStatus: const Value('synced'),
           ));
 
-  // تعداد کل محصولات
+  // ─── آمار ────────────────────────────────────────────────────
+
+  /// تعداد کل محصولات فعال
   Future<int> getProductCount() async {
     final count = productsTable.id.count();
     final query = selectOnly(productsTable)

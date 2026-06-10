@@ -1,20 +1,27 @@
 import 'package:equatable/equatable.dart';
 
-enum SyncStatus { synced, pending, conflict }
+/// وضعیت همگام‌سازی هر رکورد با سرور
+enum SyncStatus {
+  synced,   // با سرور همگام است
+  pending,  // تغییر داده، منتظر ارسال به سرور
+  conflict, // تعارض داده بین محلی و سرور
+}
 
+/// مدل محصول — هسته اصلی برنامه
+/// هر محصول در پایگاه داده محلی (Drift) ذخیره می‌شود
 class Product extends Equatable {
   final int id;
-  final int? serverId;
-  final String? barcode;
-  final String name;
+  final int? serverId;         // شناسه در سرور مرکزی (بعد از sync پر می‌شود)
+  final String? barcode;       // بارکد اختیاری
+  final String name;           // نام محصول (اجباری)
   final int? categoryId;
   final String? categoryName;
-  final double purchasePrice;
-  final double sellPrice;
-  final int stockQuantity;
-  final int minStockAlert;
+  final double purchasePrice;  // قیمت خرید
+  final double sellPrice;      // قیمت فروش
+  final int stockQuantity;     // موجودی فعلی
+  final int minStockAlert;     // حداقل موجودی قبل از هشدار
   final String? imageUrl;
-  final bool isActive;
+  final bool isActive;         // محصول حذف‌شده غیرفعال می‌شود (soft delete)
   final DateTime updatedAt;
   final SyncStatus syncStatus;
 
@@ -35,8 +42,14 @@ class Product extends Equatable {
     this.syncStatus = SyncStatus.pending,
   });
 
+  /// آیا موجودی زیر حداقل است؟ (برای نمایش هشدار)
   bool get isLowStock => stockQuantity <= minStockAlert;
-  double get profitMargin => sellPrice > 0 ? ((sellPrice - purchasePrice) / sellPrice) * 100 : 0;
+
+  /// درصد سود (برای نمایش در فرم)
+  double get profitMargin =>
+      sellPrice > 0 ? ((sellPrice - purchasePrice) / sellPrice) * 100 : 0;
+
+  /// مبلغ سود به تومان
   double get profit => sellPrice - purchasePrice;
 
   Product copyWith({
@@ -73,6 +86,7 @@ class Product extends Equatable {
     );
   }
 
+  /// تبدیل به Map برای ارسال به سرور
   Map<String, dynamic> toJson() => {
     'id': id,
     'server_id': serverId,
@@ -88,6 +102,7 @@ class Product extends Equatable {
     'updated_at': updatedAt.toIso8601String(),
   };
 
+  /// ساخت مدل از JSON دریافتی سرور
   factory Product.fromJson(Map<String, dynamic> json) => Product(
     id: json['id'] as int,
     serverId: json['server_id'] as int?,
@@ -101,9 +116,10 @@ class Product extends Equatable {
     imageUrl: json['image_url'] as String?,
     isActive: json['is_active'] as bool? ?? true,
     updatedAt: DateTime.parse(json['updated_at'] as String),
-    syncStatus: SyncStatus.synced,
+    syncStatus: SyncStatus.synced, // از سرور آمده = synced
   );
 
   @override
-  List<Object?> get props => [id, barcode, name, sellPrice, stockQuantity, syncStatus];
+  List<Object?> get props =>
+      [id, barcode, name, sellPrice, stockQuantity, syncStatus];
 }
