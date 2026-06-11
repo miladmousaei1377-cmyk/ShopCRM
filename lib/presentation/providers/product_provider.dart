@@ -1,9 +1,11 @@
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/database.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../domain/models/product.dart';
+import '../../domain/models/inventory_log.dart';
 
-// دیتابیس singleton
+// دیتابیس singleton — یک بار ساخته می‌شود و در کل اپ استفاده می‌شود
 final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
   ref.onDispose(db.close);
@@ -35,7 +37,8 @@ final productByIdProvider = FutureProvider.family<Product?, int>((ref, id) {
 });
 
 // پیدا کردن با بارکد
-final productByBarcodeProvider = FutureProvider.family<Product?, String>((ref, barcode) {
+final productByBarcodeProvider =
+    FutureProvider.family<Product?, String>((ref, barcode) {
   return ref.watch(productRepositoryProvider).findByBarcode(barcode);
 });
 
@@ -72,7 +75,8 @@ class ProductFormNotifier extends StateNotifier<ProductFormState> {
       state = state.copyWith(isLoading: false, isDone: true);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'خطا در ذخیره محصول: $e');
+      state =
+          state.copyWith(isLoading: false, error: 'خطا در ذخیره محصول: $e');
       return false;
     }
   }
@@ -92,6 +96,69 @@ class ProductFormNotifier extends StateNotifier<ProductFormState> {
   void reset() => state = const ProductFormState();
 }
 
-final productFormProvider = StateNotifierProvider.autoDispose<ProductFormNotifier, ProductFormState>((ref) {
+final productFormProvider =
+    StateNotifierProvider.autoDispose<ProductFormNotifier, ProductFormState>(
+        (ref) {
   return ProductFormNotifier(ref.watch(productRepositoryProvider));
+});
+
+// ─── لاگ‌های انبار ────────────────────────────────────────────────────────────
+
+/// Provider برای دریافت لاگ‌های انبار یک محصول خاص
+/// استفاده در صفحه جزئیات محصول و سابقه انبار
+final inventoryLogsByProductProvider =
+    FutureProvider.family<List<InventoryLog>, int>((ref, productId) async {
+  final db = ref.watch(databaseProvider);
+  // دریافت لاگ‌های انبار برای محصول مشخص، مرتب‌شده از جدیدترین به قدیمی‌ترین
+  final rows = await (db.select(db.inventoryLogsTable)
+        ..where((t) => t.productId.equals(productId))
+        ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+        ..limit(50))
+      .get();
+
+  return rows
+      .map((row) => InventoryLog(
+            id: row.id,
+            productId: row.productId,
+            type: InventoryLogType.values.firstWhere(
+              (t) => t.name == row.type,
+              orElse: () => InventoryLogType.adjust,
+            ),
+            quantity: row.quantity,
+            previousStock: row.previousStock,
+            newStock: row.newStock,
+            reason: row.reason,
+            invoiceId: row.invoiceId,
+            createdAt: row.createdAt,
+          ))
+      .toList();
+});
+
+/// Provider برای دریافت آخرین لاگ‌های انبار (برای نمایش فعالیت اخیر انبار)
+/// مرتب‌شده از جدیدترین — محدود به ۲۰ رکورد
+final recentInventoryLogsProvider =
+    FutureProvider<List<InventoryLog>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  // ۲۰ لاگ آخر از همه محصولات، از جدیدترین
+  final rows = await (db.select(db.inventoryLogsTable)
+        ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+        ..limit(20))
+      .get();
+
+  return rows
+      .map((row) => InventoryLog(
+            id: row.id,
+            productId: row.productId,
+            type: InventoryLogType.values.firstWhere(
+              (t) => t.name == row.type,
+              orElse: () => InventoryLogType.adjust,
+            ),
+            quantity: row.quantity,
+            previousStock: row.previousStock,
+            newStock: row.newStock,
+            reason: row.reason,
+            invoiceId: row.invoiceId,
+            createdAt: row.createdAt,
+          ))
+      .toList();
 });
