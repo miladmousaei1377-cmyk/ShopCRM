@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/validators.dart';
+import '../../../services/printer/bluetooth_printer_service.dart';
 import '../../../services/printer/wifi_printer_service.dart';
 import '../../providers/printer_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
@@ -318,13 +319,18 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   }
 
   void _scanBluetooth() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'اسکن بلوتوث فقط روی اندروید پشتیبانی می‌شود',
-          style: TextStyle(fontFamily: 'Vazirmatn'),
-        ),
-        duration: Duration(seconds: 2),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _BluetoothScanDialog(
+        onSelect: (deviceId, deviceName) {
+          ref.read(printerProvider.notifier).saveSettings(
+            ref.read(printerProvider).settings.copyWith(
+              bluetoothDeviceId: deviceId,
+              bluetoothDeviceName: deviceName,
+            ),
+          );
+        },
       ),
     );
   }
@@ -372,6 +378,100 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
         backgroundColor: AppColors.success,
       ));
     }
+  }
+}
+
+// ─── Dialog اسکن پرینترهای بلوتوث ───────────────────────────────────────────
+
+class _BluetoothScanDialog extends StatefulWidget {
+  final void Function(String deviceId, String deviceName) onSelect;
+
+  const _BluetoothScanDialog({required this.onSelect});
+
+  @override
+  State<_BluetoothScanDialog> createState() => _BluetoothScanDialogState();
+}
+
+class _BluetoothScanDialogState extends State<_BluetoothScanDialog> {
+  List<Map<String, String>> _devices = [];
+  bool _scanning = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _startScan();
+  }
+
+  void _startScan() {
+    setState(() { _scanning = true; _devices = []; _error = null; });
+    BluetoothPrinterService.scanDevices().listen(
+      (devices) { if (mounted) setState(() => _devices = devices); },
+      onDone: () { if (mounted) setState(() => _scanning = false); },
+      onError: (e) {
+        if (mounted) setState(() {
+          _scanning = false;
+          _error = 'بلوتوث در دسترس نیست یا مجوز داده نشده';
+        });
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        title: const Text('اسکن پرینتر بلوتوث',
+            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+        content: SizedBox(
+          width: 300,
+          child: _error != null
+              ? Text(_error!, style: const TextStyle(fontFamily: 'Vazirmatn', color: AppColors.error))
+              : _scanning && _devices.isEmpty
+                  ? const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('در حال اسکن بلوتوث (۵ ثانیه)...',
+                            style: TextStyle(fontFamily: 'Vazirmatn')),
+                      ],
+                    )
+                  : _devices.isEmpty
+                      ? const Text(
+                          'هیچ دستگاهی یافت نشد.\nمطمئن شوید پرینتر روشن و در حالت Pairing است.',
+                          style: TextStyle(fontFamily: 'Vazirmatn'),
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: _devices.map((d) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.bluetooth, color: AppColors.primary),
+                                title: Text(d['name'] ?? '',
+                                    style: const TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w600)),
+                                subtitle: Text(d['rssi'] ?? '',
+                                    style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 11)),
+                                onTap: () {
+                                  widget.onSelect(d['id']!, d['name']!);
+                                  Navigator.of(context).pop();
+                                },
+                              )).toList(),
+                        ),
+        ),
+        actions: [
+          if (!_scanning || _devices.isNotEmpty)
+            TextButton(
+              onPressed: _startScan,
+              child: const Text('اسکن مجدد', style: TextStyle(fontFamily: 'Vazirmatn')),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(AppStrings.close, style: TextStyle(fontFamily: 'Vazirmatn')),
+          ),
+        ],
+      ),
+    );
   }
 }
 

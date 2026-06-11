@@ -1,0 +1,17 @@
+# پیکربندی آیکون برنامه برای Android و Windows
+# اجرا: flutter pub run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"  # 1024x1024 PNG
+  min_sdk_android: 21
+
+  # آیکون تطبیقی Android (Material Design)
+  adaptive_icon_background: "#1565C0"   # آبی تیره (رنگ اصلی برنامه)
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+  # Windows
+  windows:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    icon_size: 48  # اندازه آیکون در دسکتاپ

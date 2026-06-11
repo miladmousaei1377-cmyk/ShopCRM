@@ -19,11 +19,36 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 // جستجوی فعال
 final productSearchQueryProvider = StateProvider<String>((ref) => '');
 
-// استریم محصولات با فیلتر جستجو
-final productsStreamProvider = StreamProvider<List<Product>>((ref) {
+// فیلتر دسته‌بندی (null = همه دسته‌ها)
+final productCategoryFilterProvider = StateProvider<String?>((ref) => null);
+
+// استریم محصولات با فیلتر جستجو (بدون فیلتر دسته — raw stream)
+final _rawProductsStreamProvider = StreamProvider<List<Product>>((ref) {
   final repo = ref.watch(productRepositoryProvider);
   final query = ref.watch(productSearchQueryProvider);
   return repo.watchProducts(search: query.isEmpty ? null : query);
+});
+
+// استریم محصولات با فیلتر جستجو + دسته‌بندی
+final productsStreamProvider = StreamProvider<List<Product>>((ref) {
+  final category = ref.watch(productCategoryFilterProvider);
+  return ref.watch(_rawProductsStreamProvider.stream).map((products) {
+    if (category == null) return products;
+    return products.where((p) => p.categoryName == category).toList();
+  });
+});
+
+// لیست دسته‌بندی‌های موجود از محصولات فعلی
+final availableCategoriesProvider = StreamProvider<List<String>>((ref) {
+  return ref.watch(_rawProductsStreamProvider.stream).map((products) {
+    final cats = products
+        .map((p) => p.categoryName)
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort();
+    return cats;
+  });
 });
 
 // محصولات زیر حداقل موجودی

@@ -1,0 +1,116 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main, master, 'claude/**']
+  pull_request:
+    branches: [main, master]
+
+env:
+  FLUTTER_VERSION: '3.22.0'
+
+jobs:
+  # ─── تست‌های یونیت ──────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: نصب Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: نصب وابستگی‌ها
+        run: flutter pub get
+
+      - name: تولید کد (drift + riverpod)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: آنالیز کد
+        run: flutter analyze --no-fatal-infos
+
+      - name: اجرای تست‌ها
+        run: flutter test --coverage
+
+      - name: آپلود پوشش تست
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage/lcov.info
+        continue-on-error: true
+
+  # ─── بیلد APK اندروید ───────────────────────────────────────────────────────
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: نصب Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: نصب Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: نصب وابستگی‌ها
+        run: flutter pub get
+
+      - name: تولید کد
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: بیلد APK (release)
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: آپلود APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+
+  # ─── بیلد ویندوز ────────────────────────────────────────────────────────────
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: نصب Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: فعال‌سازی Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: نصب وابستگی‌ها
+        run: flutter pub get
+
+      - name: تولید کد
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: بیلد Windows
+        run: flutter build windows --release
+
+      - name: آپلود خروجی ویندوز
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-${{ github.sha }}
+          path: build/windows/x64/runner/Release/
+          retention-days: 14

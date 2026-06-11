@@ -67,55 +67,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             ),
           ),
         ),
-        body: products.when(
-          data: (list) => list.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.inventory_2_outlined,
-                          size: 64, color: AppColors.textHint),
-                      const SizedBox(height: 12),
-                      const Text('محصولی یافت نشد',
-                          style: TextStyle(
-                              fontFamily: 'Vazirmatn',
-                              color: AppColors.textSecondary)),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.add),
-                        label: const Text(AppStrings.addProduct,
-                            style: TextStyle(fontFamily: 'Vazirmatn')),
-                        onPressed: () => context.go('/products/new'),
-                      ),
-                    ],
-                  ),
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: isWide ? 4 : 2,
-                    childAspectRatio: 0.8,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemCount: list.length,
-                  itemBuilder: (_, i) => _ProductCard(product: list[i]),
-                ),
-          loading: () => GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isWide ? 4 : 2,
-              childAspectRatio: 0.8,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: 8,
-            itemBuilder: (_, __) => const ShimmerList(itemCount: 1, itemHeight: 180),
-          ),
-          error: (_, __) => const Center(
-            child: Text('خطا در بارگذاری محصولات',
-                style: TextStyle(fontFamily: 'Vazirmatn')),
-          ),
+        body: Column(
+          children: [
+            _CategoryFilterRow(),
+            Expanded(child: _buildBody(context, ref, products, isWide)),
+          ],
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => context.go('/products/new'),
@@ -123,6 +79,61 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           label: const Text(AppStrings.addProduct,
               style: TextStyle(fontFamily: 'Vazirmatn')),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, WidgetRef ref,
+      AsyncValue<List<Product>> products, bool isWide) {
+    return products.when(
+      data: (list) => list.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.inventory_2_outlined,
+                      size: 64, color: AppColors.textHint),
+                  const SizedBox(height: 12),
+                  const Text('محصولی یافت نشد',
+                      style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text(AppStrings.addProduct,
+                        style: TextStyle(fontFamily: 'Vazirmatn')),
+                    onPressed: () => context.go('/products/new'),
+                  ),
+                ],
+              ),
+            )
+          : GridView.builder(
+              padding: const EdgeInsets.all(12),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isWide ? 4 : 2,
+                childAspectRatio: 0.8,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: list.length,
+              itemBuilder: (_, i) => _ProductCard(product: list[i]),
+            ),
+      loading: () => GridView.builder(
+        padding: const EdgeInsets.all(12),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: isWide ? 4 : 2,
+          childAspectRatio: 0.8,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        itemCount: 8,
+        itemBuilder: (_, __) =>
+            const ShimmerList(itemCount: 1, itemHeight: 180),
+      ),
+      error: (_, __) => const Center(
+        child: Text('خطا در بارگذاری محصولات',
+            style: TextStyle(fontFamily: 'Vazirmatn')),
       ),
     );
   }
@@ -273,6 +284,60 @@ class _ProductCard extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// ردیف چیپ‌های فیلتر دسته‌بندی — بالای لیست محصولات
+class _CategoryFilterRow extends ConsumerWidget {
+  const _CategoryFilterRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categories = ref.watch(availableCategoriesProvider);
+    final selected = ref.watch(productCategoryFilterProvider);
+
+    return categories.when(
+      data: (cats) {
+        if (cats.isEmpty) return const SizedBox.shrink();
+        return SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              // چیپ "همه"
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: FilterChip(
+                  label: const Text('همه',
+                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12)),
+                  selected: selected == null,
+                  onSelected: (_) => ref
+                      .read(productCategoryFilterProvider.notifier)
+                      .state = null,
+                ),
+              ),
+              // چیپ هر دسته
+              for (final cat in cats)
+                Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: FilterChip(
+                    label: Text(cat,
+                        style: const TextStyle(
+                            fontFamily: 'Vazirmatn', fontSize: 12)),
+                    selected: selected == cat,
+                    onSelected: (_) => ref
+                        .read(productCategoryFilterProvider.notifier)
+                        .state = selected == cat ? null : cat,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }
