@@ -9,6 +9,8 @@ import '../../../domain/models/invoice.dart';
 import '../../../domain/models/product.dart';
 import '../../../domain/models/customer.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/customer_provider.dart';
+import '../../providers/invoice_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/printer_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
@@ -219,13 +221,28 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
   Future<void> _submitAndPrint() async {
     final id = await ref.read(cartProvider.notifier).submitInvoice();
     if (id != null && mounted) {
-      // پرینت فاکتور
-      final printerState = ref.read(printerProvider);
-      if (printerState.isConnected) {
-        // TODO: print receipt
+      // پرینت فاکتور — اگر پرینتر متصل است
+      final printerNotifier = ref.read(printerProvider.notifier);
+      try {
+        final invoice = await ref.read(invoiceRepositoryProvider).findById(id);
+        if (invoice != null) {
+          await printerNotifier.printInvoice(invoice);
+        }
+      } catch (_) {
+        // خطای پرینتر نباید فاکتور را لغو کند — فقط نمایش پیام
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('فاکتور ثبت شد اما پرینتر متصل نیست',
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
+              backgroundColor: AppColors.warning,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       }
       ref.read(cartProvider.notifier).clearCart();
-      context.pop();
+      if (mounted) context.pop();
     }
   }
 
@@ -580,40 +597,148 @@ class _CustomerPickerSheetState extends ConsumerState<_CustomerPickerSheet> {
   final _search = TextEditingController();
 
   @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final customers = ref.watch(customerRepositoryProvider.select((_) => _));
-    // ساده‌ترین implementation
+    final query = _search.text.toLowerCase();
+    // دریافت مشتریان از DB و فیلتر محلی
+    final customersAsync = ref.watch(customersStreamProvider);
+
     return DraggableScrollableSheet(
-      initialChildSize: 0.6,
+      initialChildSize: 0.65,
+      maxChildSize: 0.95,
       builder: (_, scrollController) => Directionality(
         textDirection: TextDirection.rtl,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _search,
-                decoration: const InputDecoration(
-                  hintText: 'جستجوی مشتری...',
-                  hintStyle: TextStyle(fontFamily: 'Vazirmatn'),
-                  prefixIcon: Icon(Icons.search),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              // دسته کشیدن
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                onChanged: (_) => setState(() {}),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_off_outlined),
-              title: const Text('بدون مشتری',
-                  style: TextStyle(fontFamily: 'Vazirmatn')),
-              onTap: widget.onClear,
-            ),
-            const Divider(),
-            // TODO: نمایش لیست مشتریان از DB
-            const Center(
-              child: Text('لیست مشتریان',
-                  style: TextStyle(fontFamily: 'Vazirmatn', color: AppColors.textSecondary)),
-            ),
-          ],
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'انتخاب مشتری',
+                  style: TextStyle(
+                    fontFamily: 'Vazirmatn',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: TextField(
+                  controller: _search,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'جستجوی مشتری...',
+                    hintStyle: const TextStyle(fontFamily: 'Vazirmatn'),
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: AppColors.background,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              // گزینه بدون مشتری
+              ListTile(
+                leading: const Icon(Icons.person_off_outlined, color: AppColors.textSecondary),
+                title: const Text(AppStrings.noCustomer,
+                    style: TextStyle(fontFamily: 'Vazirmatn')),
+                onTap: widget.onClear,
+              ),
+              const Divider(height: 1, color: AppColors.divider),
+              // لیست مشتریان از دیتابیس
+              Expanded(
+                child: customersAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(
+                    child: Text('خطا: $e',
+                        style: const TextStyle(fontFamily: 'Vazirmatn')),
+                  ),
+                  data: (customers) {
+                    final filtered = query.isEmpty
+                        ? customers
+                        : customers
+                            .where((c) =>
+                                c.name.toLowerCase().contains(query) ||
+                                (c.phone ?? '').contains(query))
+                            .toList();
+                    if (filtered.isEmpty) {
+                      return const Center(
+                        child: Text('مشتری یافت نشد',
+                            style: TextStyle(
+                                fontFamily: 'Vazirmatn',
+                                color: AppColors.textSecondary)),
+                      );
+                    }
+                    return ListView.separated(
+                      controller: scrollController,
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, color: AppColors.divider),
+                      itemBuilder: (_, i) {
+                        final c = filtered[i];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.infoLight,
+                            child: Text(
+                              c.name.substring(0, 1),
+                              style: const TextStyle(
+                                fontFamily: 'Vazirmatn',
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          title: Text(c.name,
+                              style: const TextStyle(
+                                  fontFamily: 'Vazirmatn',
+                                  fontWeight: FontWeight.w600)),
+                          subtitle: c.phone != null
+                              ? Text(c.phone!,
+                                  style: const TextStyle(
+                                      fontFamily: 'Vazirmatn', fontSize: 12))
+                              : null,
+                          trailing: c.hasDebt
+                              ? Text(
+                                  CurrencyFormatter.format(c.totalDebt),
+                                  style: const TextStyle(
+                                    fontFamily: 'Vazirmatn',
+                                    fontSize: 11,
+                                    color: AppColors.warning,
+                                  ),
+                                )
+                              : null,
+                          onTap: () => widget.onSelected(c),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

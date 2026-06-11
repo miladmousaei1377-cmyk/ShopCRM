@@ -128,15 +128,15 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   }
 }
 
-class _ProductCard extends StatelessWidget {
+class _ProductCard extends ConsumerWidget {
   final Product product;
   const _ProductCard({required this.product});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: () => context.go('/products/${product.id}'),
-      onLongPress: () => _showQuickEdit(context),
+      onLongPress: () => _showQuickEdit(context, ref),
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -198,7 +198,7 @@ class _ProductCard extends StatelessWidget {
     );
   }
 
-  void _showQuickEdit(BuildContext context) {
+  void _showQuickEdit(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
       builder: (_) => Directionality(
@@ -221,8 +221,54 @@ class _ProductCard extends StatelessWidget {
                   style: TextStyle(fontFamily: 'Vazirmatn')),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: quick price edit dialog
+                _showPriceDialog(context, ref);
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPriceDialog(BuildContext context, WidgetRef ref) {
+    final ctrl = TextEditingController(
+      text: CurrencyFormatter.formatNumber(product.sellPrice),
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: Text(
+            'قیمت: ${product.name}',
+            style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 15),
+          ),
+          content: TextField(
+            controller: ctrl,
+            keyboardType: TextInputType.number,
+            textDirection: TextDirection.ltr,
+            decoration: const InputDecoration(
+              labelText: 'قیمت فروش (تومان)',
+              labelStyle: TextStyle(fontFamily: 'Vazirmatn'),
+              border: OutlineInputBorder(),
+            ),
+            style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('انصراف', style: TextStyle(fontFamily: 'Vazirmatn')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final raw = ctrl.text.replaceAll(',', '').trim();
+                final price = double.tryParse(raw);
+                if (price == null || price <= 0) return;
+                final updated = product.copyWith(sellPrice: price);
+                await ref.read(productRepositoryProvider).saveProduct(updated);
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('ذخیره', style: TextStyle(fontFamily: 'Vazirmatn')),
             ),
           ],
         ),

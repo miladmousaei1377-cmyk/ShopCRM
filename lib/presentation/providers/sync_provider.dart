@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../core/network/dio_client.dart';
+import '../../data/local/database.dart';
+import '../../data/remote/sync_service.dart';
 import '../../services/notification_service.dart';
+import 'product_provider.dart';
 
 /// وضعیت فرآیند همگام‌سازی
 enum SyncStatus { idle, syncing, success, failed, offline }
@@ -35,7 +39,8 @@ class SyncState {
 /// مدیریت همگام‌سازی آفلاین/آنلاین
 /// وقتی اینترنت برمی‌گردد → sync خودکار انجام می‌شود
 class SyncNotifier extends StateNotifier<SyncState> {
-  SyncNotifier() : super(const SyncState()) {
+  final Ref _ref;
+  SyncNotifier(this._ref) : super(const SyncState()) {
     _listenConnectivity();
   }
 
@@ -65,15 +70,19 @@ class SyncNotifier extends StateNotifier<SyncState> {
       message: 'در حال همگام‌سازی...',
     );
     try {
-      // TODO: ارتباط واقعی با sync endpoint سرور
-      await Future.delayed(const Duration(seconds: 2));
+      final db = _ref.read(databaseProvider);
+      final dio = await DioClient.getInstance();
+      final syncService = SyncService(db: db, dio: dio);
+      final result = await syncService.syncAll(since: state.lastSyncTime);
+      final msg = result.isSuccess
+          ? 'همگام‌سازی موفق (${result.pushed} ارسال، ${result.pulled} دریافت)'
+          : 'همگام‌سازی با ${result.errors.length} خطا';
       state = state.copyWith(
-        status: SyncStatus.success,
-        message: 'همگام‌سازی موفق',
-        lastSyncTime: DateTime.now(),
+        status: result.isSuccess ? SyncStatus.success : SyncStatus.failed,
+        message: msg,
+        lastSyncTime: result.isSuccess ? DateTime.now() : state.lastSyncTime,
       );
-      // اطلاع‌رسانی سیستمی فقط اگر اپ در پس‌زمینه باشد
-      NotificationService.showSyncSuccess();
+      if (result.isSuccess) NotificationService.showSyncSuccess();
     } catch (e) {
       state = state.copyWith(
         status: SyncStatus.failed,
@@ -91,7 +100,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
 /// Provider وضعیت sync
 final syncProvider = StateNotifierProvider<SyncNotifier, SyncState>((ref) {
-  return SyncNotifier();
+  return SyncNotifier(ref);
 });
 
 /// استریم وضعیت اتصال (true = آنلاین)

@@ -7,6 +7,7 @@ import '../../../core/utils/validators.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/models/product.dart';
 import '../../providers/product_provider.dart';
+import '../../widgets/barcode/barcode_scanner_widget.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/common/currency_input.dart';
 
@@ -261,7 +262,22 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   }
 
   void _scanBarcode() {
-    // TODO: باز کردن scanner
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.6,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          child: BarcodeScannerWidget(
+            onDetected: (barcode) {
+              setState(() => _barcodeCtrl.text = barcode);
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   void _confirmDelete() {

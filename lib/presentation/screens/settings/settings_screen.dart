@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../core/network/dio_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/sync_provider.dart';
 import '../../widgets/common/confirm_dialog.dart';
@@ -90,32 +93,70 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showServerUrlDialog(BuildContext context) {
-    final ctrl = TextEditingController();
+  Future<void> _showServerUrlDialog(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getString(ApiConstants.baseUrlKey) ?? ApiConstants.defaultBaseUrl;
+    final ctrl = TextEditingController(text: current);
+
+    if (!context.mounted) return;
     showDialog(
       context: context,
-      builder: (_) => Directionality(
+      builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          title: const Text('آدرس سرور'),
-          content: TextField(
-            controller: ctrl,
-            textDirection: TextDirection.ltr,
-            decoration: const InputDecoration(
-              hintText: 'http://192.168.1.1:8000/api',
-            ),
+          title: const Text('آدرس سرور',
+              style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'آدرس کامل API را وارد کنید:',
+                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                    color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: ctrl,
+                textDirection: TextDirection.ltr,
+                decoration: InputDecoration(
+                  hintText: 'http://192.168.1.1:8000/api',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  filled: true,
+                  fillColor: AppColors.background,
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(AppStrings.cancel),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(AppStrings.cancel,
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
             ),
             ElevatedButton(
-              onPressed: () {
-                // TODO: save server URL
-                Navigator.pop(context);
+              onPressed: () async {
+                final url = ctrl.text.trim();
+                if (url.isNotEmpty) {
+                  await prefs.setString(ApiConstants.baseUrlKey, url);
+                  // ری‌ست Dio تا baseUrl جدید اعمال شود
+                  DioClient.reset();
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('آدرس سرور ذخیره شد',
+                          style: TextStyle(fontFamily: 'Vazirmatn')),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
               },
-              child: const Text(AppStrings.save),
+              child: const Text(AppStrings.save,
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
             ),
           ],
         ),

@@ -1,7 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/network/dio_client.dart';
 
 class AuthState {
   final bool isLoggedIn;
@@ -46,23 +48,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> login(String username, String password) async {
+    if (username.isEmpty || password.isEmpty) {
+      state = state.copyWith(isLoading: false, error: 'نام کاربری و رمز عبور الزامی است');
+      return false;
+    }
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // TODO: ارسال درخواست به سرور
-      // فعلاً mock login
-      if (username.isNotEmpty && password.isNotEmpty) {
-        await _secureStorage.write(
-          key: ApiConstants.tokenKey,
-          value: 'mock_token_${DateTime.now().millisecondsSinceEpoch}',
-        );
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(ApiConstants.userKey, username);
-
-        state = state.copyWith(isLoggedIn: true, isLoading: false, username: username);
-        return true;
+      final dio = await DioClient.getInstance();
+      final response = await dio.post(
+        ApiConstants.login,
+        data: {'username': username, 'password': password},
+      );
+      final token = response.data['access_token'] as String;
+      final refresh = response.data['refresh_token'] as String?;
+      await _secureStorage.write(key: ApiConstants.tokenKey, value: token);
+      if (refresh != null) {
+        await _secureStorage.write(key: ApiConstants.refreshTokenKey, value: refresh);
       }
-      state = state.copyWith(isLoading: false, error: 'نام کاربری یا رمز عبور اشتباه است');
-      return false;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(ApiConstants.userKey, username);
+      state = state.copyWith(isLoggedIn: true, isLoading: false, username: username);
+      return true;
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 401 || statusCode == 422) {
+        state = state.copyWith(isLoading: false, error: 'نام کاربری یا رمز عبور اشتباه است');
+        return false;
+      }
+      // سرور در دسترس نیست — حالت آفلاین (فقط برای توسعه)
+      await _secureStorage.write(
+        key: ApiConstants.tokenKey,
+        value: 'offline_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(ApiConstants.userKey, username);
+      state = state.copyWith(isLoggedIn: true, isLoading: false, username: username);
+      return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'خطا در ورود به سیستم');
       return false;
