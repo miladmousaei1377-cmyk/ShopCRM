@@ -1,0 +1,8 @@
+# قالب کلید امضای Android
+# این فایل را به key.properties تغییر نام بده (با مقادیر واقعی)
+# key.properties نباید در git commit شود
+
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=shopcrm
+storeFile=../keystore/shopcrm.jks

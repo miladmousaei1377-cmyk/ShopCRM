@@ -1,0 +1,48 @@
+# فایل‌های تولید‌شده Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Android — کلیدهای امضا (نباید در git باشد!)
+android/key.properties
+android/keystore/
+**/android/**/*.keystore
+**/android/**/*.jks
+
+# iOS
+ios/.symlinks/
+ios/Flutter/flutter_export_environment.sh
+
+# Windows artifacts
+windows/flutter/generated_plugin_registrant.cc
+windows/flutter/generated_plugin_registrant.h
+windows/flutter/generated_plugins.cmake
+
+# پوشه‌های دیتابیس محلی (برای توسعه)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# فایل‌های محیط
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# پوشه پوشش تست
+coverage/

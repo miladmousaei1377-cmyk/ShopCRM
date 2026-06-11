@@ -6,14 +6,17 @@ import 'package:flutter/foundation.dart';
 import '../../data/local/database.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../data/repositories/invoice_repository.dart';
+import '../../data/repositories/customer_repository.dart';
 import '../../domain/models/product.dart';
 import '../../domain/models/invoice.dart';
+import '../../domain/models/customer.dart';
 
 class SyncService {
   final AppDatabase _db;
   final Dio _dio;
   final ProductRepository _productRepo;
   final InvoiceRepository _invoiceRepo;
+  final CustomerRepository _customerRepo;
 
   SyncService({
     required AppDatabase db,
@@ -21,7 +24,8 @@ class SyncService {
   })  : _db = db,
         _dio = dio,
         _productRepo = ProductRepository(db),
-        _invoiceRepo = InvoiceRepository(db);
+        _invoiceRepo = InvoiceRepository(db),
+        _customerRepo = CustomerRepository(db);
 
   // ─── sync کامل: push سپس pull ──────────────────────────────────────────────
 
@@ -54,6 +58,17 @@ class SyncService {
       );
     } catch (e) {
       errors.add('خطا در ارسال فاکتورها: $e');
+      debugPrint('[SyncService] خطا: $e');
+    }
+
+    // ─── مرحله ۲ب: ارسال مشتریان pending ────────────────────────
+    try {
+      pushed += await _retryWithBackoff(
+        () => _pushPendingCustomers(),
+        label: 'push customers',
+      );
+    } catch (e) {
+      errors.add('خطا در ارسال مشتریان: $e');
       debugPrint('[SyncService] خطا: $e');
     }
 
@@ -151,6 +166,32 @@ class SyncService {
     throw Exception('سرور پاسخ غیرمنتظره داد: ${response.statusCode}');
   }
 
+  // ─── ارسال مشتریان pending ─────────────────────────────────────────────────
+
+  /// ارسال مشتریانی که هنوز با سرور همگام نشده‌اند
+  Future<int> _pushPendingCustomers() async {
+    final customers = await _customerRepo.getCustomers();
+    final pending = customers
+        .where((c) => c.syncStatus == SyncStatus.pending)
+        .toList();
+    if (pending.isEmpty) return 0;
+    debugPrint('[SyncService] ارسال ${pending.length} مشتری به سرور...');
+    final response = await _dio.post(
+      '/api/sync/push',
+      data: {
+        'type': 'customers',
+        'data': pending.map((c) => c.toJson()).toList(),
+      },
+    );
+    if (response.statusCode == 200) {
+      for (final c in pending) {
+        await _customerRepo.saveCustomer(c.copyWith(syncStatus: SyncStatus.synced));
+      }
+      return pending.length;
+    }
+    throw Exception('سرور پاسخ غیرمنتظره داد: ${response.statusCode}');
+  }
+
   // ─── دریافت از سرور ─────────────────────────────────────────────────────────
 
   /// دریافت آخرین داده‌های سرور و ادغام با دیتابیس محلی
@@ -191,8 +232,15 @@ class SyncService {
     // ─── ادغام مشتریان دریافتی ──────────────────────────────────
     final customersJson = data['customers'] as List<dynamic>? ?? [];
     debugPrint('[SyncService] دریافت ${customersJson.length} مشتری از سرور');
-    // TODO: ادغام مشتریان با CustomerRepository پس از اضافه شدن fromJson
-    totalPulled += customersJson.length;
+    for (final json in customersJson) {
+      try {
+        final customer = Customer.fromJson(json as Map<String, dynamic>);
+        await _customerRepo.saveCustomer(customer);
+        totalPulled++;
+      } catch (e) {
+        debugPrint('[SyncService] خطا در ادغام مشتری: $e');
+      }
+    }
 
     debugPrint('[SyncService] مجموع دریافت‌شده: $totalPulled رکورد');
     return totalPulled;

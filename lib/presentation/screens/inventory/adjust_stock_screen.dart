@@ -12,6 +12,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../data/local/database.dart';
 import '../../../domain/models/inventory_log.dart';
 import '../../../domain/models/product.dart';
+import '../../../services/notification_service.dart';
 import '../../providers/product_provider.dart';
 
 class AdjustStockScreen extends ConsumerStatefulWidget {
@@ -147,6 +148,11 @@ class _AdjustStockScreenState extends ConsumerState<AdjustStockScreen> {
 
       // بروزرسانی موجودی محصول در دیتابیس
       await repo.updateStock(product.id, newStock);
+
+      // ارسال اعلان اگر موجودی به زیر حداقل رسید
+      if (newStock <= product.minStockAlert) {
+        NotificationService.showLowStockAlert(product.name, newStock);
+      }
 
       // ثبت لاگ انبار برای ردیابی تاریخچه تغییرات
       final db = ref.read(databaseProvider);
