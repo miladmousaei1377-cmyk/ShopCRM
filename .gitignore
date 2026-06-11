@@ -7,6 +7,10 @@
 .pub/
 build/
 
+# تنظیمات محلی (مسیر SDK متفاوت روی هر دستگاه)
+local.properties
+android/local.properties
+
 # IDE
 .idea/
 .vscode/

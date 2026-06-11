@@ -44,7 +44,7 @@ dependencies:
 
   # تاریخ شمسی
   shamsi_date: ^1.1.0
-  persian_datetime_picker: ^3.2.4
+  persian_datetime_picker: ^3.2.3
 
   # فونت و استایل
   google_fonts: ^6.2.1
