@@ -20,7 +20,7 @@ dependencies:
 
   # پایگاه داده محلی
   drift: ^2.18.0
-  drift_flutter: ^0.2.1
+  drift_flutter: ^0.3.0
   sqlite3_flutter_libs: ^0.5.24
 
   # شبکه
@@ -62,7 +62,7 @@ dependencies:
 
   # خروجی
   excel: ^4.0.2
-  share_plus: ^9.0.0
+  share_plus: ^12.0.2
 
   # کمکی
   path_provider: ^2.1.3
@@ -79,7 +79,7 @@ dev_dependencies:
 
   # کد جنریشن
   build_runner: ^2.4.9
-  drift_dev: ^2.18.0
+  drift_dev: ^2.30.0
   retrofit_generator: ^8.1.0
   riverpod_generator: ^2.4.3
   freezed: ^2.5.2
