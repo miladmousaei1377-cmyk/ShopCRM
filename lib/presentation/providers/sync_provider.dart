@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../services/notification_service.dart';
 
 /// وضعیت فرآیند همگام‌سازی
 enum SyncStatus { idle, syncing, success, failed, offline }
@@ -71,6 +72,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
         message: 'همگام‌سازی موفق',
         lastSyncTime: DateTime.now(),
       );
+      // اطلاع‌رسانی سیستمی فقط اگر اپ در پس‌زمینه باشد
+      NotificationService.showSyncSuccess();
     } catch (e) {
       state = state.copyWith(
         status: SyncStatus.failed,

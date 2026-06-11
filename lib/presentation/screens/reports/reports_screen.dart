@@ -6,33 +6,56 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_converter.dart';
 import '../../../data/repositories/report_repository.dart';
-import '../../providers/product_provider.dart';
-import '../../providers/invoice_provider.dart';
+import '../../../services/pdf_service.dart';
+import '../../../services/excel_service.dart';
+import '../../providers/report_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/charts/sales_chart.dart';
-import '../dashboard/dashboard_screen.dart';
-
-final reportParamsProvider = StateProvider<_ReportParams>((ref) {
-  final now = DateTime.now();
-  return _ReportParams(
-    from: now.subtract(const Duration(days: 30)),
-    to: now,
-  );
-});
-
-class _ReportParams {
-  final DateTime from;
-  final DateTime to;
-  _ReportParams({required this.from, required this.to});
-}
-
-final reportDataProvider = FutureProvider<SalesReport>((ref) {
-  final params = ref.watch(reportParamsProvider);
-  return ref.watch(reportRepositoryProvider).getReport(params.from, params.to);
-});
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
+
+  Future<void> _exportPdf(BuildContext context, WidgetRef ref) async {
+    final report = ref.read(reportDataProvider);
+    final params = ref.read(reportParamsProvider);
+    if (!report.hasValue || report.value == null) return;
+    try {
+      await PdfService.shareSalesReport(
+        report: report.value!,
+        from: params.from,
+        to: params.to,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('خطا در تولید PDF: $e',
+              style: const TextStyle(fontFamily: 'Vazirmatn')),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
+  }
+
+  Future<void> _exportExcel(BuildContext context, WidgetRef ref) async {
+    final report = ref.read(reportDataProvider);
+    final params = ref.read(reportParamsProvider);
+    if (!report.hasValue || report.value == null) return;
+    try {
+      await ExcelService.exportSalesReport(
+        report: report.value!,
+        from: params.from,
+        to: params.to,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('خطا در تولید Excel: $e',
+              style: const TextStyle(fontFamily: 'Vazirmatn')),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,8 +69,13 @@ class ReportsScreen extends ConsumerWidget {
           title: const Text(AppStrings.report),
           actions: [
             IconButton(
+              icon: const Icon(Icons.table_chart_outlined),
+              onPressed: () => _exportExcel(context, ref),
+              tooltip: AppStrings.exportExcel,
+            ),
+            IconButton(
               icon: const Icon(Icons.picture_as_pdf_outlined),
-              onPressed: () {/* TODO: export PDF */},
+              onPressed: () => _exportPdf(context, ref),
               tooltip: AppStrings.exportPdf,
             ),
           ],
@@ -78,7 +106,7 @@ class ReportsScreen extends ConsumerWidget {
                               label: AppStrings.fromDate,
                               date: params.from,
                               onPick: (d) => ref.read(reportParamsProvider.notifier)
-                                  .state = _ReportParams(from: d, to: params.to),
+                                  .state = ReportParams(from: d, to: params.to),
                             ),
                           ),
                           const Padding(
@@ -90,7 +118,7 @@ class ReportsScreen extends ConsumerWidget {
                               label: AppStrings.toDate,
                               date: params.to,
                               onPick: (d) => ref.read(reportParamsProvider.notifier)
-                                  .state = _ReportParams(from: params.from, to: d),
+                                  .state = ReportParams(from: params.from, to: d),
                             ),
                           ),
                         ],
@@ -106,7 +134,7 @@ class ReportsScreen extends ConsumerWidget {
                             onPressed: () {
                               final now = DateTime.now();
                               ref.read(reportParamsProvider.notifier).state =
-                                  _ReportParams(from: now, to: now);
+                                  ReportParams(from: now, to: now);
                             },
                           ),
                           ActionChip(
@@ -114,7 +142,7 @@ class ReportsScreen extends ConsumerWidget {
                                 style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12)),
                             onPressed: () {
                               final now = DateTime.now();
-                              ref.read(reportParamsProvider.notifier).state = _ReportParams(
+                              ref.read(reportParamsProvider.notifier).state = ReportParams(
                                 from: now.subtract(const Duration(days: 7)),
                                 to: now,
                               );
@@ -125,7 +153,7 @@ class ReportsScreen extends ConsumerWidget {
                                 style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12)),
                             onPressed: () {
                               final now = DateTime.now();
-                              ref.read(reportParamsProvider.notifier).state = _ReportParams(
+                              ref.read(reportParamsProvider.notifier).state = ReportParams(
                                 from: now.subtract(const Duration(days: 30)),
                                 to: now,
                               );

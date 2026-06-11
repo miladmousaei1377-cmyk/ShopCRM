@@ -5,27 +5,16 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_converter.dart';
-import '../../../data/repositories/report_repository.dart';
 import '../../../data/repositories/customer_repository.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/invoice_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/sync_provider.dart';
+import '../../providers/report_provider.dart';
 import '../../widgets/common/stat_card.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/charts/sales_chart.dart';
 import '../../../domain/models/invoice.dart';
-
-final reportRepositoryProvider = Provider<ReportRepository>((ref) {
-  return ReportRepository(
-    ref.watch(databaseProvider),
-    ref.watch(invoiceRepositoryProvider),
-  );
-});
-
-final weeklySalesProvider = FutureProvider<Map<String, double>>((ref) {
-  return ref.watch(reportRepositoryProvider).getWeeklySales();
-});
 
 final totalDebtProvider = FutureProvider<double>((ref) {
   return CustomerRepository(ref.watch(databaseProvider)).getTotalDebt();

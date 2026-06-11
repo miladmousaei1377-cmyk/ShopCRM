@@ -355,9 +355,30 @@ class PdfService {
   // ─── ذخیره و اشتراک‌گذاری PDF ──────────────────────────────────────────────
 
   /// ذخیره یا اشتراک‌گذاری PDF با استفاده از پکیج printing
-  /// کاربر می‌تواند PDF را چاپ کند، ذخیره کند یا اشتراک‌گذاری کند
-  static Future<void> savePdf(
-      Uint8List bytes, String filename) async {
+  static Future<void> savePdf(Uint8List bytes, String filename) async {
     await Printing.sharePdf(bytes: bytes, filename: '$filename.pdf');
+  }
+
+  /// تولید و اشتراک‌گذاری PDF فاکتور — shortcut برای صفحه جزئیات
+  static Future<void> shareInvoicePdf(Invoice invoice) async {
+    final bytes = await buildInvoicePdf(invoice);
+    await savePdf(bytes, 'invoice_${invoice.invoiceNumber}');
+  }
+
+  /// تولید و اشتراک‌گذاری PDF گزارش فروش
+  static Future<void> shareSalesReport({
+    required SalesReport report,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final bytes = await buildSalesReportPdf(
+      report: report,
+      from: from,
+      to: to,
+    );
+    await savePdf(
+      bytes,
+      'sales_report_${from.year}${from.month.toString().padLeft(2,'0')}${from.day.toString().padLeft(2,'0')}',
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/validators.dart';
+import '../../../services/printer/wifi_printer_service.dart';
 import '../../providers/printer_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
 
@@ -169,6 +170,17 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 8),
+                          // دکمه کشف پرینتر در شبکه
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.search, size: 18),
+                              label: const Text('کشف پرینتر در شبکه',
+                                  style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                              onPressed: _discoverWifiPrinters,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -284,11 +296,57 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   }
 
   Future<void> _testPrint() async {
-    // TODO: ارسال print test
+    await _saveSettings();
+    try {
+      await ref.read(printerProvider.notifier).testPrint();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('پرینت تست ارسال شد ✓',
+              style: TextStyle(fontFamily: 'Vazirmatn')),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('خطا در پرینت: $e',
+              style: const TextStyle(fontFamily: 'Vazirmatn')),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
   }
 
   void _scanBluetooth() {
-    // TODO: scan BT devices
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'اسکن بلوتوث فقط روی اندروید پشتیبانی می‌شود',
+          style: TextStyle(fontFamily: 'Vazirmatn'),
+        ),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// نمایش dialog کشف پرینتر در شبکه
+  Future<void> _discoverWifiPrinters() async {
+    // استخراج subnet از IP جاری
+    final ip = _ipCtrl.text.trim();
+    final subnet = ip.contains('.')
+        ? ip.split('.').take(3).join('.')
+        : '192.168.1';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _WifiDiscoveryDialog(
+        subnet: subnet,
+        onSelect: (foundIp) {
+          _ipCtrl.text = foundIp;
+        },
+      ),
+    );
   }
 
   Future<void> _saveSettings() async {
@@ -316,6 +374,111 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
     }
   }
 }
+
+// ─── Dialog کشف پرینتر WiFi در شبکه محلی ────────────────────────────────────
+
+class _WifiDiscoveryDialog extends StatefulWidget {
+  final String subnet;
+  final ValueChanged<String> onSelect;
+
+  const _WifiDiscoveryDialog({
+    required this.subnet,
+    required this.onSelect,
+  });
+
+  @override
+  State<_WifiDiscoveryDialog> createState() => _WifiDiscoveryDialogState();
+}
+
+class _WifiDiscoveryDialogState extends State<_WifiDiscoveryDialog> {
+  List<String> _found = [];
+  bool _scanning = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scan();
+  }
+
+  Future<void> _scan() async {
+    setState(() { _scanning = true; _found = []; });
+    try {
+      final result = await WiFiPrinterService.discoverPrinters(
+          subnet: widget.subnet);
+      if (mounted) setState(() { _found = result; _scanning = false; });
+    } catch (_) {
+      if (mounted) setState(() => _scanning = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        title: const Text('کشف پرینتر در شبکه',
+            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+        content: SizedBox(
+          width: 300,
+          child: _scanning
+              ? const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('در حال اسکن شبکه...',
+                        style: TextStyle(fontFamily: 'Vazirmatn')),
+                  ],
+                )
+              : _found.isEmpty
+                  ? const Text(
+                      'پرینتری در شبکه یافت نشد.\nمطمئن شوید پرینتر روشن و متصل به همین شبکه است.',
+                      style: TextStyle(fontFamily: 'Vazirmatn'),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('${_found.length} پرینتر یافت شد:',
+                            style: const TextStyle(
+                                fontFamily: 'Vazirmatn',
+                                color: AppColors.textSecondary,
+                                fontSize: 12)),
+                        const SizedBox(height: 8),
+                        ..._found.map((ip) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.print_outlined,
+                                  color: AppColors.primary),
+                              title: Text(ip,
+                                  style: const TextStyle(
+                                      fontFamily: 'Vazirmatn',
+                                      fontWeight: FontWeight.w600)),
+                              onTap: () {
+                                widget.onSelect(ip);
+                                Navigator.of(context).pop();
+                              },
+                            )),
+                      ],
+                    ),
+        ),
+        actions: [
+          if (!_scanning)
+            TextButton(
+              onPressed: _scan,
+              child: const Text('اسکن مجدد',
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(AppStrings.close,
+                style: TextStyle(fontFamily: 'Vazirmatn')),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _Section extends StatelessWidget {
   final String title;

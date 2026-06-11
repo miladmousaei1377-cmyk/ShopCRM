@@ -67,6 +67,13 @@ class WiFiPrinterService extends PrinterService {
     }
   }
 
+  /// ارسال مستقیم bytes به پرینتر (برای تست پرینت)
+  Future<void> printRaw(List<int> bytes) async {
+    await _ensureConnected();
+    _socket!.add(bytes);
+    await _socket!.flush();
+  }
+
   /// تست سریع اتصال بدون پرینت (برای صفحه تنظیمات)
   Future<bool> testConnection() async {
     try {

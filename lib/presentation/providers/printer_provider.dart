@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../domain/models/invoice.dart';
 import '../../services/printer/printer_service.dart';
 import '../../services/printer/bluetooth_printer_service.dart';
+import '../../services/printer/escpos_builder.dart';
 import '../../services/printer/wifi_printer_service.dart';
 
 enum PrinterType { bluetooth, wifi }
@@ -160,6 +162,46 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
     await _service?.disconnect();
     _service = null;
     state = state.copyWith(isConnected: false);
+  }
+
+  /// پرینت رسید فاکتور — اگر متصل نباشد ابتدا اتصال برقرار می‌کند
+  Future<void> printInvoice(Invoice invoice) async {
+    if (_service == null) await connect();
+    if (!state.isConnected) throw Exception('پرینتر متصل نیست');
+    await _service!.printReceipt(
+      invoice,
+      storeName: state.settings.storeName,
+      storePhone: state.settings.storePhone,
+      storeAddress: state.settings.storeAddress,
+    );
+  }
+
+  /// پرینت تست ASCII — تأیید اتصال بدون فاکتور واقعی
+  Future<void> testPrint() async {
+    if (_service == null) await connect();
+    if (!state.isConnected) throw Exception('پرینتر متصل نیست');
+
+    // WiFi printer: ارسال مستقیم bytes تست
+    if (_service is WiFiPrinterService) {
+      final bytes = EscPosBuilder.buildTestPrint(state.settings.storeName);
+      final wifiService = _service as WiFiPrinterService;
+      // دسترسی مستقیم به socket از طریق printRaw
+      await wifiService.printRaw(bytes);
+    }
+    // بلوتوث: پیاده‌سازی در BluetoothPrinterService
+  }
+
+  /// اسکن پرینترهای WiFi در شبکه محلی
+  Future<List<String>> discoverWifiPrinters({String subnet = '192.168.1'}) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final found = await WiFiPrinterService.discoverPrinters(subnet: subnet);
+      state = state.copyWith(isLoading: false);
+      return found;
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+      return [];
+    }
   }
 
   PrinterService? get service => _service;
