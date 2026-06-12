@@ -36,8 +36,8 @@ android {
         applicationId "com.shopcrm.app"
         minSdkVersion 21           // Android 5.0+
         targetSdkVersion flutter.targetSdkVersion
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        versionCode flutter.versionCode
+        versionName flutter.versionName
         multiDexEnabled true
     }
 
