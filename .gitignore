@@ -50,3 +50,9 @@ windows/flutter/generated_plugins.cmake
 
 # پوشه پوشش تست
 coverage/
+
+# نصب‌کننده‌های باینری
+*.deb
+*.rpm
+*.apk
+!build/**/*.apk
