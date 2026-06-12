@@ -52,7 +52,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   void _openAddCustomerDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => _CustomerFormDialog(
+      builder: (ctx) => CustomerFormDialog(
         onSaved: () {
           ref.invalidate(customersStreamProvider);
         },
@@ -476,18 +476,18 @@ class _SkeletonCustomerTile extends StatelessWidget {
 // ─── دیالوگ فرم مشتری ────────────────────────────────────────────────────────
 
 /// دیالوگ افزودن / ویرایش مشتری
-class _CustomerFormDialog extends ConsumerStatefulWidget {
+class CustomerFormDialog extends ConsumerStatefulWidget {
   final Customer? customer; // اگر null → افزودن، وگرنه → ویرایش
   final VoidCallback? onSaved;
 
-  const _CustomerFormDialog({this.customer, this.onSaved});
+  const CustomerFormDialog({this.customer, this.onSaved});
 
   @override
-  ConsumerState<_CustomerFormDialog> createState() =>
-      _CustomerFormDialogState();
+  ConsumerState<CustomerFormDialog> createState() =>
+      CustomerFormDialogState();
 }
 
-class _CustomerFormDialogState extends ConsumerState<_CustomerFormDialog> {
+class CustomerFormDialogState extends ConsumerState<CustomerFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;

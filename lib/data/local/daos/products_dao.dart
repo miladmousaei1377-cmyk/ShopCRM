@@ -46,7 +46,7 @@ class ProductsDao extends DatabaseAccessor<AppDatabase>
         ..where((t) => t.isActive.equals(true))
         ..where((t) =>
             t.stockQuantity.isSmallerOrEqualValue(0) |
-            t.stockQuantity.isSmallerThanExp(t.minStockAlert)))
+            t.stockQuantity.isSmallerThan(t.minStockAlert)))
           .get();
 
   // ─── نوشتن ───────────────────────────────────────────────────

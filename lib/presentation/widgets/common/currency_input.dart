@@ -5,6 +5,7 @@ import '../../../core/utils/currency_formatter.dart';
 /// فیلد ورودی قیمت با فرمت خودکار (جداکننده هزار)
 class CurrencyInput extends StatefulWidget {
   final TextEditingController? controller;
+  final double? initialValue;
   final String? label;
   final String? hint;
   final bool showToman;
@@ -15,6 +16,7 @@ class CurrencyInput extends StatefulWidget {
   const CurrencyInput({
     super.key,
     this.controller,
+    this.initialValue,
     this.label,
     this.hint,
     this.showToman = true,
@@ -35,6 +37,9 @@ class _CurrencyInputState extends State<CurrencyInput> {
   void initState() {
     super.initState();
     _controller = widget.controller ?? TextEditingController();
+    if (widget.controller == null && widget.initialValue != null && widget.initialValue! > 0) {
+      _controller.text = CurrencyFormatter.formatNumber(widget.initialValue!);
+    }
     _controller.addListener(_formatInput);
   }
 

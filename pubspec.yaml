@@ -19,7 +19,7 @@ dependencies:
   go_router: ^13.2.0
 
   # پایگاه داده محلی
-  drift: ^2.18.0
+  drift: ^2.28.0
   drift_flutter: ^0.2.1
   sqlite3_flutter_libs: ^0.5.24
 

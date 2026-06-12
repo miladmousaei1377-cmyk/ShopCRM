@@ -11,7 +11,7 @@ import '../../../domain/models/customer.dart';
 import '../../../domain/models/invoice.dart';
 import '../../../domain/models/product.dart';
 import '../../providers/cart_provider.dart';
-import 'customers_screen.dart' show _CustomerFormDialog;
+import 'customers_screen.dart' show CustomerFormDialog;
 
 /// Provider برای دریافت اطلاعات یک مشتری خاص
 final customerByIdProvider =
@@ -114,7 +114,7 @@ class _CustomerDetailBody extends ConsumerWidget {
             onPressed: () {
               showDialog(
                 context: context,
-                builder: (_) => _CustomerFormDialog(
+                builder: (_) => CustomerFormDialog(
                   customer: customer,
                   onSaved: onCustomerUpdated,
                 ),

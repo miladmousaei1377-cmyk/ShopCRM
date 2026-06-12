@@ -124,6 +124,6 @@ class InvoicesDao extends DatabaseAccessor<AppDatabase>
   /// جمع فروش امروز
   Future<double> getTodaySalesTotal() async {
     final invoices = await getTodayInvoices();
-    return invoices.fold(0.0, (sum, inv) => sum + inv.finalAmount);
+    return invoices.fold(0.0, (sum, inv) => sum + (inv.finalAmount as double));
   }
 }
