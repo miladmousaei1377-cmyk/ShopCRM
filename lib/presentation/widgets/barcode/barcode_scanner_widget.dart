@@ -218,10 +218,10 @@ class _ScannerOverlayPainter extends CustomPainter {
     const cornerLen = 24.0;
     // گوشه‌ها
     for (final corner in [
-      [rect.left, rect.top, 1, 1],
-      [rect.right, rect.top, -1, 1],
-      [rect.left, rect.bottom, 1, -1],
-      [rect.right, rect.bottom, -1, -1],
+      [rect.left, rect.top, 1.0, 1.0],
+      [rect.right, rect.top, -1.0, 1.0],
+      [rect.left, rect.bottom, 1.0, -1.0],
+      [rect.right, rect.bottom, -1.0, -1.0],
     ]) {
       final x = corner[0], y = corner[1], dx = corner[2], dy = corner[3];
       canvas.drawLine(Offset(x, y), Offset(x + dx * cornerLen, y), cornerPaint);

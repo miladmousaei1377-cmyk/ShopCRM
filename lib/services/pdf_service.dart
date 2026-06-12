@@ -371,11 +371,7 @@ class PdfService {
     required DateTime from,
     required DateTime to,
   }) async {
-    final bytes = await buildSalesReportPdf(
-      report: report,
-      from: from,
-      to: to,
-    );
+    final bytes = await buildSalesReportPdf(report, from, to);
     await savePdf(
       bytes,
       'sales_report_${from.year}${from.month.toString().padLeft(2,'0')}${from.day.toString().padLeft(2,'0')}',

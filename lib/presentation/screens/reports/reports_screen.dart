@@ -41,11 +41,7 @@ class ReportsScreen extends ConsumerWidget {
     final params = ref.read(reportParamsProvider);
     if (!report.hasValue || report.value == null) return;
     try {
-      await ExcelService.exportSalesReport(
-        report: report.value!,
-        from: params.from,
-        to: params.to,
-      );
+      await ExcelService.exportSalesReport(report.value!);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
