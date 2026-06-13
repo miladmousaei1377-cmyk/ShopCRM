@@ -90,6 +90,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // ورود با اثر انگشت: فقط وجود توکن ذخیره‌شده را بررسی می‌کند
+  Future<bool> loginWithBiometric() async {
+    final token = await _secureStorage.read(key: ApiConstants.tokenKey);
+    if (token == null) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final username = prefs.getString(ApiConstants.userKey) ?? '';
+    state = state.copyWith(isLoggedIn: true, username: username);
+    return true;
+  }
+
   Future<void> logout() async {
     await _secureStorage.delete(key: ApiConstants.tokenKey);
     await _secureStorage.delete(key: ApiConstants.refreshTokenKey);

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/validators.dart';
+import '../../../services/biometric_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
 
@@ -20,12 +21,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _passwordVisible = false;
   bool _rememberMe = true;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
 
   @override
-  void dispose() {
-    _usernameController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _checkBiometric();
+  }
+
+  Future<void> _checkBiometric() async {
+    final available = await BiometricService.isAvailable();
+    final enabled = await BiometricService.isEnabled();
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = available;
+        _biometricEnabled = enabled;
+      });
+      // اگر اثر انگشت فعال است، به‌صورت خودکار پنجره بیومتریک را نمایش بده
+      if (available && enabled) {
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) _loginWithBiometric();
+      }
+    }
+  }
+
+  Future<void> _loginWithBiometric() async {
+    final ok = await BiometricService.authenticate();
+    if (ok && mounted) {
+      // اثر انگشت تأیید شد — ورود مستقیم
+      final authNotifier = ref.read(authProvider.notifier);
+      final success = await authNotifier.loginWithBiometric();
+      if (success && mounted) context.go('/dashboard');
+    }
   }
 
   Future<void> _login() async {
@@ -34,9 +62,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _usernameController.text.trim(),
       _passwordController.text,
     );
-    if (success && mounted) {
-      context.go('/dashboard');
-    }
+    if (success && mounted) context.go('/dashboard');
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -66,35 +99,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.3),
+                            color: AppColors.primary.withValues(alpha: 0.3),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.store_rounded,
-                        size: 52,
-                        color: Colors.white,
-                      ),
+                      child: const Icon(Icons.store_rounded, size: 52, color: Colors.white),
                     ),
                     const SizedBox(height: 24),
                     const Text(
                       AppStrings.appName,
                       style: TextStyle(
-                        fontFamily: 'Vazirmatn',
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                        fontFamily: 'Vazirmatn', fontSize: 28,
+                        fontWeight: FontWeight.w800, color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
                       'سیستم مدیریت فروشگاه',
                       style: TextStyle(
-                        fontFamily: 'Vazirmatn',
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
+                        fontFamily: 'Vazirmatn', fontSize: 14, color: AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 48),
@@ -102,9 +127,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     // فرم ورود
                     Card(
                       elevation: 3,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: Form(
@@ -115,10 +138,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               const Text(
                                 AppStrings.login,
                                 style: TextStyle(
-                                  fontFamily: 'Vazirmatn',
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                  fontFamily: 'Vazirmatn', fontSize: 20,
+                                  fontWeight: FontWeight.w700, color: AppColors.textPrimary,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -146,11 +167,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   labelText: AppStrings.password,
                                   prefixIcon: const Icon(Icons.lock_outline),
                                   suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _passwordVisible
-                                          ? Icons.visibility_off
-                                          : Icons.visibility,
-                                    ),
+                                    icon: Icon(_passwordVisible
+                                        ? Icons.visibility_off
+                                        : Icons.visibility),
                                     onPressed: () => setState(
                                         () => _passwordVisible = !_passwordVisible),
                                   ),
@@ -169,14 +188,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         setState(() => _rememberMe = v ?? false),
                                     activeColor: AppColors.primary,
                                   ),
-                                  const Text(
-                                    AppStrings.rememberMe,
-                                    style: TextStyle(
-                                      fontFamily: 'Vazirmatn',
-                                      fontSize: 13,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
+                                  const Text(AppStrings.rememberMe,
+                                      style: TextStyle(
+                                        fontFamily: 'Vazirmatn', fontSize: 13,
+                                        color: AppColors.textSecondary,
+                                      )),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -188,7 +204,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   decoration: BoxDecoration(
                                     color: AppColors.errorLight,
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                                    border: Border.all(
+                                        color: AppColors.error.withValues(alpha: 0.3)),
                                   ),
                                   child: Row(
                                     children: [
@@ -196,14 +213,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                           color: AppColors.error, size: 18),
                                       const SizedBox(width: 8),
                                       Expanded(
-                                        child: Text(
-                                          authState.error!,
-                                          style: const TextStyle(
-                                            fontFamily: 'Vazirmatn',
-                                            fontSize: 13,
-                                            color: AppColors.error,
-                                          ),
-                                        ),
+                                        child: Text(authState.error!,
+                                            style: const TextStyle(
+                                              fontFamily: 'Vazirmatn', fontSize: 13,
+                                              color: AppColors.error,
+                                            )),
                                       ),
                                     ],
                                   ),
@@ -218,20 +232,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   child: const Text(AppStrings.loginButton),
                                 ),
                               ),
+
+                              // دکمه ورود با اثر انگشت
+                              if (_biometricAvailable && _biometricEnabled) ...[
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: _loginWithBiometric,
+                                  icon: const Icon(Icons.fingerprint, size: 22),
+                                  label: const Text('ورود با اثر انگشت',
+                                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 14)),
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size.fromHeight(48),
+                                    side: const BorderSide(color: AppColors.primary),
+                                    foregroundColor: AppColors.primary,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Text(
-                      AppStrings.appVersion,
-                      style: const TextStyle(
-                        fontFamily: 'Vazirmatn',
-                        fontSize: 12,
-                        color: AppColors.textHint,
-                      ),
-                    ),
+                    Text(AppStrings.appVersion,
+                        style: const TextStyle(
+                          fontFamily: 'Vazirmatn', fontSize: 12, color: AppColors.textHint,
+                        )),
                   ],
                 ),
               ),
