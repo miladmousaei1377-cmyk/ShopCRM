@@ -12,8 +12,9 @@ import models.user
 import models.product
 import models.customer
 import models.invoice
+import models.prediction
 
-from routers import auth, products, invoices, customers, reports, sync
+from routers import auth, products, invoices, customers, reports, sync, prediction
 
 # ─── ساخت اپلیکیشن ─────────────────────────────────────────────
 app = FastAPI(
@@ -43,7 +44,30 @@ app.include_router(products.router,  prefix="/api")
 app.include_router(invoices.router,  prefix="/api")
 app.include_router(customers.router, prefix="/api")
 app.include_router(reports.router,   prefix="/api")
-app.include_router(sync.router,      prefix="/api")
+app.include_router(sync.router,       prefix="/api")
+app.include_router(prediction.router, prefix="/api")
+
+
+# ─── زمان‌بند تحلیل روزانه (APScheduler) ────────────────────────
+try:
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    from database import SessionLocal
+    from services.ai_service import run_scheduled_analysis
+
+    scheduler = AsyncIOScheduler()
+
+    @scheduler.scheduled_job(CronTrigger(hour=8, minute=0))
+    async def _daily_ai_analysis():
+        db = SessionLocal()
+        try:
+            await run_scheduled_analysis(db)
+        finally:
+            db.close()
+
+    scheduler.start()
+except ImportError:
+    pass  # APScheduler اختیاری است
 
 
 # ─── Endpoint‌های سطح بالا ──────────────────────────────────────

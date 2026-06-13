@@ -21,6 +21,7 @@ import 'presentation/screens/products/product_form_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/settings/printer_settings_screen.dart';
 import 'presentation/screens/reports/reports_screen.dart';
+import 'presentation/screens/prediction/prediction_screen.dart';
 
 /// تعریف مسیرهای ناوبری با go_router
 /// شامل redirect guard برای صفحات احراز هویت
@@ -120,8 +121,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // ─── گزارش‌ها و تنظیمات ──────────────────────────────────
+          // ─── گزارش‌ها، پیش‌بینی و تنظیمات ──────────────────────
           GoRoute(path: '/reports',           builder: (_, __) => const ReportsScreen()),
+          GoRoute(path: '/prediction',        builder: (_, __) => const PredictionScreen()),
           GoRoute(path: '/settings',          builder: (_, __) => const SettingsScreen()),
           GoRoute(path: '/settings/printer',  builder: (_, __) => const PrinterSettingsScreen()),
         ],
@@ -179,6 +181,7 @@ class _AppShellState extends State<_AppShell> {
     '/products',
     '/inventory',
     '/customers',
+    '/prediction',
     '/reports',
     '/settings',
   ];
@@ -190,6 +193,7 @@ class _AppShellState extends State<_AppShell> {
     AppStrings.products,
     AppStrings.inventory,
     AppStrings.customers,
+    'پیش‌بینی',
     AppStrings.reports,
     AppStrings.settings,
   ];
@@ -201,6 +205,7 @@ class _AppShellState extends State<_AppShell> {
     Icons.inventory_2_outlined,
     Icons.warehouse_outlined,
     Icons.people_outline,
+    Icons.auto_awesome_outlined,
     Icons.bar_chart_outlined,
     Icons.settings_outlined,
   ];
@@ -212,6 +217,7 @@ class _AppShellState extends State<_AppShell> {
     Icons.inventory_2,
     Icons.warehouse,
     Icons.people,
+    Icons.auto_awesome,
     Icons.bar_chart,
     Icons.settings,
   ];

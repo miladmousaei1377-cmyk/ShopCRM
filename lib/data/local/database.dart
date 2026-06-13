@@ -4,9 +4,11 @@ import 'tables/products_table.dart';
 import 'tables/invoices_table.dart';
 import 'tables/customers_table.dart';
 import 'tables/inventory_table.dart';
+import 'tables/prediction_cache_table.dart';
 import 'daos/products_dao.dart';
 import 'daos/invoices_dao.dart';
 import 'daos/customers_dao.dart';
+import 'daos/prediction_dao.dart';
 
 part 'database.g.dart';
 
@@ -22,11 +24,14 @@ part 'database.g.dart';
     InvoiceItemsTable,
     CustomersTable,
     InventoryLogsTable,
+    AiAnalysisCacheTable,
+    AiUsageLogTable,
   ],
   daos: [
     ProductsDao,
     InvoicesDao,
     CustomersDao,
+    PredictionDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -34,21 +39,22 @@ class AppDatabase extends _$AppDatabase {
 
   /// نسخه schema — با هر تغییر ساختار جدول باید افزایش یابد
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
-      // اولین نصب: ایجاد همه جداول
       await m.createAll();
     },
     onUpgrade: (m, from, to) async {
-      // مایگریشن‌های آپدیت — در نسخه‌های بعدی اینجا اضافه می‌شود
-      // مثال: if (from < 2) { await m.addColumn(productsTable, productsTable.newColumn); }
+      if (from < 2) {
+        // v1 → v2: اضافه کردن جداول پیش‌بینی
+        await m.createTable(aiAnalysisCacheTable);
+        await m.createTable(aiUsageLogTable);
+      }
     },
   );
 
-  /// باز کردن اتصال به فایل SQLite
   static QueryExecutor _openConnection() {
     return driftDatabase(name: 'shop_crm_db');
   }

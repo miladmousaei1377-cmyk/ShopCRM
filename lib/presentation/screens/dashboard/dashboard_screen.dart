@@ -15,6 +15,7 @@ import '../../widgets/common/stat_card.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/charts/sales_chart.dart';
 import '../../../domain/models/invoice.dart';
+import '../../providers/prediction_provider.dart';
 
 final totalDebtProvider = FutureProvider<double>((ref) {
   return CustomerRepository(ref.watch(databaseProvider)).getTotalDebt();
@@ -137,6 +138,10 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+
+                // کارت خلاصه پیش‌بینی
+                _PredictionSummaryCard(),
                 const SizedBox(height: 24),
 
                 // نمودار فروش هفتگی
@@ -401,6 +406,96 @@ class _SyncStatusChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PredictionSummaryCard extends ConsumerWidget {
+  const _PredictionSummaryCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final predictionAsync = ref.watch(dashboardPredictionProvider);
+    return predictionAsync.when(
+      loading: () => const SizedBox(),
+      error: (_, __) => const SizedBox(),
+      data: (pred) => GestureDetector(
+        onTap: () => context.go('/prediction'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1565C0), Color(0xFF6A1B9A)],
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'پیش‌بینی فردا',
+                      style: TextStyle(
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 11,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      CurrencyFormatter.format(pred.tomorrowPrediction),
+                      style: const TextStyle(
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (pred.stockAlertCount > 0) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade400,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${pred.stockAlertCount} هشدار',
+                    style: const TextStyle(
+                      fontFamily: 'Vazirmatn',
+                      fontSize: 11,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Icon(
+                pred.trend == 'up'
+                    ? Icons.trending_up
+                    : pred.trend == 'down'
+                        ? Icons.trending_down
+                        : Icons.trending_flat,
+                color: pred.trend == 'up'
+                    ? Colors.greenAccent
+                    : pred.trend == 'down'
+                        ? Colors.redAccent
+                        : Colors.white70,
+                size: 24,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
