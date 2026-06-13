@@ -300,45 +300,108 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.qr_code_scanner, size: 18),
-              label: const Text('اسکن بارکد',
-                  style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
-              onPressed: onScan,
-            ),
+          _ActionBtn(
+            icon: Icons.qr_code_scanner,
+            label: 'بارکد',
+            onTap: onScan,
+          ),
+          const SizedBox(width: 8),
+          _ActionBtn(
+            icon: Icons.search,
+            label: 'جستجو',
+            onTap: onSearch,
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.search, size: 18),
-              label: const Text('جستجو',
-                  style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
-              onPressed: onSearch,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.person_outline, size: 18),
-              label: Text(
-                customerName ?? 'مشتری',
-                style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 13),
-                overflow: TextOverflow.ellipsis,
+            child: GestureDetector(
+              onTap: onCustomer,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: customerName != null
+                        ? AppColors.secondary
+                        : AppColors.border,
+                    width: customerName != null ? 1.5 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  color: customerName != null
+                      ? AppColors.secondary.withValues(alpha: 0.06)
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      customerName != null
+                          ? Icons.person
+                          : Icons.person_outline,
+                      size: 16,
+                      color: customerName != null
+                          ? AppColors.secondary
+                          : AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        customerName ?? 'مشتری',
+                        style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 12,
+                          color: customerName != null
+                              ? AppColors.secondary
+                              : AppColors.textSecondary,
+                          fontWeight: customerName != null
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              onPressed: onCustomer,
-              style: customerName != null
-                  ? OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.secondary,
-                      side: const BorderSide(color: AppColors.secondary),
-                    )
-                  : null,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _ActionBtn({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.primary, width: 1.2),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: AppColors.primary),
+            const SizedBox(width: 4),
+            Text(label,
+                style: const TextStyle(
+                  fontFamily: 'Vazirmatn',
+                  fontSize: 12,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w500,
+                )),
+          ],
+        ),
       ),
     );
   }
@@ -355,32 +418,25 @@ class _CartEmpty extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.shopping_cart_outlined,
-              size: 80, color: AppColors.textHint),
-          const SizedBox(height: 16),
+              size: 52, color: AppColors.textHint),
+          const SizedBox(height: 12),
           const Text(
             'سبد خرید خالی است',
             style: TextStyle(
               fontFamily: 'Vazirmatn',
-              fontSize: 16,
+              fontSize: 15,
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           const Text(
-            'برای افزودن محصول بارکد اسکن کنید\nیا از جستجو استفاده کنید',
+            'بارکد اسکن کنید یا محصول را جستجو کنید',
             style: TextStyle(
               fontFamily: 'Vazirmatn',
-              fontSize: 13,
+              fontSize: 12,
               color: AppColors.textHint,
             ),
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('اسکن بارکد',
-                style: TextStyle(fontFamily: 'Vazirmatn')),
-            onPressed: onScan,
           ),
         ],
       ),

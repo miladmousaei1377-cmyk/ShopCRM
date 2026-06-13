@@ -41,10 +41,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _checkToken() async {
+    // Don't auto-login — user must authenticate explicitly each launch
+    // Token is kept for biometric/quick-login use
+  }
+
+  Future<bool> hasStoredToken() async {
     final token = await _secureStorage.read(key: ApiConstants.tokenKey);
-    if (token != null) {
-      state = state.copyWith(isLoggedIn: true);
-    }
+    return token != null;
   }
 
   Future<bool> login(String username, String password) async {

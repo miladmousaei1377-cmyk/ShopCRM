@@ -9,6 +9,7 @@ class InvoicesTable extends Table {
   IntColumn get serverId => integer().nullable()();
   TextColumn get invoiceNumber => text().withLength(min: 1, max: 50)();
   IntColumn get customerId => integer().nullable().references(CustomersTable, #id)();
+  TextColumn get customerName => text().nullable()();
   IntColumn get userId => integer().nullable()();
   RealColumn get totalAmount => real().withDefault(const Constant(0))();
   RealColumn get discount => real().withDefault(const Constant(0))();

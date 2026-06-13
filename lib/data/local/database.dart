@@ -39,7 +39,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// نسخه schema — با هر تغییر ساختار جدول باید افزایش یابد
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -51,6 +51,9 @@ class AppDatabase extends _$AppDatabase {
         // v1 → v2: اضافه کردن جداول پیش‌بینی
         await m.createTable(aiAnalysisCacheTable);
         await m.createTable(aiUsageLogTable);
+      }
+      if (from < 3) {
+        await m.addColumn(invoicesTable, invoicesTable.customerName);
       }
     },
   );

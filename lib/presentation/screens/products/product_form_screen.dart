@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -273,10 +274,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
           child: BarcodeScannerWidget(
             onDetected: (barcode) async {
               setState(() => _barcodeCtrl.text = barcode);
-              // جستجوی محصول با این بارکد در پایگاه داده
+
+              // جستجو در پایگاه داده محلی
               final product = await ref.read(productRepositoryProvider).findByBarcode(barcode);
               if (product != null && mounted) {
-                // محصول موجود است — پر کردن خودکار تمام فیلدها
                 setState(() {
                   _nameCtrl.text = product.name;
                   _purchasePriceCtrl.text = CurrencyFormatter.formatNumber(product.purchasePrice);
@@ -296,6 +297,50 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     ),
                   );
                 }
+                return;
+              }
+
+              // جستجوی آنلاین در Open Food Facts
+              if (!mounted) return;
+              setState(() => _isLoading = true);
+              try {
+                final response = await Dio().get<Map<String, dynamic>>(
+                  'https://world.openfoodfacts.org/api/v2/product/$barcode',
+                  queryParameters: {'fields': 'product_name,product_name_fa'},
+                  options: Options(receiveTimeout: const Duration(seconds: 8)),
+                );
+                final data = response.data;
+                if (data != null && data['status'] == 1) {
+                  final product = data['product'] as Map<String, dynamic>?;
+                  final name = (product?['product_name_fa'] as String?)?.trim().isNotEmpty == true
+                      ? product!['product_name_fa'] as String
+                      : (product?['product_name'] as String?)?.trim();
+                  if (name != null && name.isNotEmpty && mounted) {
+                    setState(() => _nameCtrl.text = name);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('نام محصول: $name',
+                            style: const TextStyle(fontFamily: 'Vazirmatn')),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                    return;
+                  }
+                }
+              } catch (_) {
+                // network error — fall through to "not found"
+              } finally {
+                if (mounted) setState(() => _isLoading = false);
+              }
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('نام محصول یافت نشد — لطفاً دستی وارد کنید',
+                        style: TextStyle(fontFamily: 'Vazirmatn')),
+                    backgroundColor: AppColors.warning,
+                  ),
+                );
               }
             },
           ),

@@ -126,7 +126,9 @@ class ReportsScreen extends ConsumerWidget {
                         children: [
                           ActionChip(
                             label: const Text(AppStrings.daily,
-                                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12)),
+                                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                                    color: AppColors.textPrimary)),
+                            backgroundColor: AppColors.infoLight,
                             onPressed: () {
                               final now = DateTime.now();
                               ref.read(reportParamsProvider.notifier).state =
@@ -135,7 +137,9 @@ class ReportsScreen extends ConsumerWidget {
                           ),
                           ActionChip(
                             label: const Text(AppStrings.weekly,
-                                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12)),
+                                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                                    color: AppColors.textPrimary)),
+                            backgroundColor: AppColors.infoLight,
                             onPressed: () {
                               final now = DateTime.now();
                               ref.read(reportParamsProvider.notifier).state = ReportParams(
@@ -146,7 +150,9 @@ class ReportsScreen extends ConsumerWidget {
                           ),
                           ActionChip(
                             label: const Text(AppStrings.monthly,
-                                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12)),
+                                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                                    color: AppColors.textPrimary)),
+                            backgroundColor: AppColors.infoLight,
                             onPressed: () {
                               final now = DateTime.now();
                               ref.read(reportParamsProvider.notifier).state = ReportParams(

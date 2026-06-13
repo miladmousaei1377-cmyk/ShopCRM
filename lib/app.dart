@@ -7,6 +7,7 @@ import 'core/constants/app_strings.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/keyboard_shortcuts.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/theme_provider.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/dashboard/dashboard_screen.dart';
 import 'presentation/screens/invoice/new_invoice_screen.dart';
@@ -113,11 +114,14 @@ class ShopCrmApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       title: AppStrings.appName,
       debugShowCheckedModeBanner: false,
+      themeMode: themeMode,
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
       routerConfig: router,
       builder: (context, child) => Directionality(
         textDirection: TextDirection.rtl,
@@ -139,7 +143,7 @@ class _AppShell extends StatefulWidget {
   State<_AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<_AppShell> {
+class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   // ─── آیتم‌های دسکتاپ (همه ۹ مسیر) ──────────────────────────────────────
   static const _routes = [
     '/dashboard', '/invoice/new', '/invoices', '/products',
@@ -182,6 +186,31 @@ class _AppShellState extends State<_AppShell> {
     (route: '/reports',    label: AppStrings.reports,    icon: Icons.bar_chart_outlined),
     (route: '/settings',   label: AppStrings.settings,   icon: Icons.settings_outlined),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Future<bool> didPopRoute() async {
+    if (!mounted) return false;
+    try {
+      final router = GoRouter.of(context);
+      if (router.canPop()) { router.pop(); return true; }
+    } catch (_) {}
+    if (!mounted) return false;
+    final shouldExit = await _showExitDialog(context);
+    if (shouldExit && mounted) SystemNavigator.pop();
+    return true;
+  }
 
   bool get _isDesktop => Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
@@ -325,50 +354,34 @@ class _AppShellState extends State<_AppShell> {
 
     // ─── موبایل: NavigationBar ۵ آیتمه + دیالوگ خروج ────────────────────────
     final mobileIdx = _mobileIndexFromLocation(location);
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        final router = GoRouter.of(context);
-        if (router.canPop()) {
-          router.pop();
-          return;
-        }
-        if (!context.mounted) return;
-        final shouldExit = await _showExitDialog(context);
-        if (shouldExit && context.mounted) {
-          SystemNavigator.pop();
-        }
-      },
-      child: Scaffold(
-        body: widget.child,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: mobileIdx,
-          onDestinationSelected: (i) {
-            if (i < _mobileRoutes.length) {
-              _navigate(_mobileRoutes[i]);
-            } else {
-              _showMoreSheet(context);
-            }
-          },
-          destinations: [
-            ...List.generate(
-              _mobileRoutes.length,
-              (i) => NavigationDestination(
-                icon: Icon(_mobileIcons[i]),
-                selectedIcon: Icon(_mobileSelectedIcons[i]),
-                label: _mobileLabels[i],
-              ),
+    return Scaffold(
+      body: widget.child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: mobileIdx,
+        onDestinationSelected: (i) {
+          if (i < _mobileRoutes.length) {
+            _navigate(_mobileRoutes[i]);
+          } else {
+            _showMoreSheet(context);
+          }
+        },
+        destinations: [
+          ...List.generate(
+            _mobileRoutes.length,
+            (i) => NavigationDestination(
+              icon: Icon(_mobileIcons[i]),
+              selectedIcon: Icon(_mobileSelectedIcons[i]),
+              label: _mobileLabels[i],
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.more_horiz_outlined),
-              selectedIcon: Icon(Icons.more_horiz),
-              label: 'بیشتر',
-            ),
-          ],
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          height: 65,
-        ),
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.more_horiz_outlined),
+            selectedIcon: Icon(Icons.more_horiz),
+            label: 'بیشتر',
+          ),
+        ],
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        height: 65,
       ),
     );
   }

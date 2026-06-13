@@ -72,6 +72,7 @@ class InvoiceRepository {
       serverId: Value(invoice.serverId),
       invoiceNumber: Value(invoice.invoiceNumber),
       customerId: Value(invoice.customerId),
+      customerName: Value(invoice.customerName),
       userId: Value(invoice.userId),
       totalAmount: Value(invoice.totalAmount),
       discount: Value(invoice.discount),
@@ -111,6 +112,7 @@ class InvoiceRepository {
       serverId: row.serverId,
       invoiceNumber: row.invoiceNumber,
       customerId: row.customerId,
+      customerName: row.customerName,
       userId: row.userId,
       items: itemRows.map((item) => InvoiceItem(
         id: item.id,

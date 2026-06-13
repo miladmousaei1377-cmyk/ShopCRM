@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'services/notification_service.dart';
+import 'services/backup_service.dart';
 
 /// نقطه شروع برنامه
 void main() async {
@@ -25,6 +26,9 @@ void main() async {
 
   // راه‌اندازی سرویس اعلان‌ها در پس‌زمینه — بدون block کردن startup
   NotificationService.init().catchError((_) {});
+
+  // بکاپ خودکار هر ۳۰ دقیقه در صورت فعال بودن
+  BackupService.autoBackupIfNeeded().catchError((_) {});
 
   // ProviderScope: ریشه Riverpod — همه Provider‌ها داخل این زنده می‌مانند
   runApp(

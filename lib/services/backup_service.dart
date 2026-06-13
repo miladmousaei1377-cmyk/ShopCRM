@@ -66,7 +66,7 @@ class BackupService {
 
   static Future<bool> isAutoEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_autoEnabledKey) ?? false;
+    return prefs.getBool(_autoEnabledKey) ?? true; // پیش‌فرض: فعال
   }
 
   static Future<void> setAutoEnabled(bool value) async {
@@ -93,7 +93,8 @@ class BackupService {
     final str = prefs.getString(_lastBackupKey);
     if (str != null) {
       final last = DateTime.tryParse(str);
-      if (last != null && DateTime.now().difference(last).inDays < 7) return;
+      // بکاپ خودکار هر ۳۰ دقیقه
+      if (last != null && DateTime.now().difference(last).inMinutes < 30) return;
     }
     await createBackup();
   }

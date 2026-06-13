@@ -16,6 +16,7 @@ import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/charts/sales_chart.dart';
 import '../../../domain/models/invoice.dart';
 import '../../providers/prediction_provider.dart';
+import '../../providers/theme_provider.dart';
 
 final totalDebtProvider = FutureProvider<double>((ref) {
   return CustomerRepository(ref.watch(databaseProvider)).getTotalDebt();
@@ -39,6 +40,8 @@ class DashboardScreen extends ConsumerWidget {
     final lowStockProducts = ref.watch(lowStockProductsProvider);
     final weeklySales = ref.watch(weeklySalesProvider);
     final syncState = ref.watch(syncProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == ThemeMode.dark;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -46,6 +49,11 @@ class DashboardScreen extends ConsumerWidget {
         appBar: AppBar(
           title: const Text(AppStrings.dashboard),
           actions: [
+            IconButton(
+              icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+              onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
+              tooltip: isDark ? 'حالت روشن' : 'حالت تاریک',
+            ),
             // وضعیت sync
             Padding(
               padding: const EdgeInsets.only(left: 8),
