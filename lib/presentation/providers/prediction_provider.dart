@@ -28,7 +28,8 @@ final salesForecastProvider = FutureProvider.family<SalesForecast, int>((ref, da
 
   if (isOnline) {
     try {
-      final resp = await DioClient.instance.get(
+      final dio = await DioClient.getInstance();
+      final resp = await dio.get(
         '/prediction/daily',
         queryParameters: {'days': days},
       );
@@ -48,7 +49,8 @@ final stockAlertsProvider = FutureProvider<List<StockAlert>>((ref) async {
 
   if (isOnline) {
     try {
-      final resp = await DioClient.instance.get('/prediction/stock-alert');
+      final dio = await DioClient.getInstance();
+      final resp = await dio.get('/prediction/stock-alert');
       final data = (resp.data['alerts'] as List)
           .map((e) => StockAlert.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -67,7 +69,8 @@ final topProductsProvider = FutureProvider<List<TopProduct>>((ref) async {
 
   if (isOnline) {
     try {
-      final resp = await DioClient.instance.get('/prediction/top-products');
+      final dio = await DioClient.getInstance();
+      final resp = await dio.get('/prediction/top-products');
       if (resp.data['data_available'] == true) {
         return (resp.data['next_week_tops'] as List)
             .map((e) => TopProduct.fromJson(e as Map<String, dynamic>))
@@ -88,12 +91,12 @@ final aiAnalysisProvider = FutureProvider<AiAnalysis?>((ref) async {
 
   if (isOnline) {
     try {
-      final resp = await DioClient.instance.post(
+      final dio = await DioClient.getInstance();
+      final resp = await dio.post(
         '/prediction/ai-analysis',
         data: {'period': 'week', 'force': false},
       );
       final analysis = AiAnalysis.fromJson(resp.data as Map<String, dynamic>);
-      // ذخیره در SQLite برای نمایش آفلاین
       await svc.saveAnalysisToCache(analysis);
       return analysis;
     } catch (_) {}
@@ -112,7 +115,8 @@ final aiStatusProvider = FutureProvider<AiStatus>((ref) async {
 
   if (isOnline) {
     try {
-      final resp = await DioClient.instance.get('/prediction/ai-status');
+      final dio = await DioClient.getInstance();
+      final resp = await dio.get('/prediction/ai-status');
       return AiStatus.fromJson(resp.data as Map<String, dynamic>);
     } catch (_) {}
   }
@@ -145,7 +149,8 @@ class AiRefreshNotifier extends StateNotifier<AsyncValue<AiAnalysis?>> {
         return;
       }
 
-      final resp = await DioClient.instance.post(
+      final dio = await DioClient.getInstance();
+      final resp = await dio.post(
         '/prediction/ai-analysis',
         data: {'period': 'week', 'force': force},
       );
