@@ -92,11 +92,18 @@ class _CustomerDetailBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // محاسبه بدهی کل از فاکتورهای نسیه (دقیق‌تر از فیلد ذخیره‌شده)
+    final computedDebt = invoicesAsync.value
+            ?.where((inv) => inv.paymentMethod == PaymentMethod.credit)
+            .fold<double>(0, (sum, inv) => sum + inv.finalAmount) ??
+        customer.totalDebt;
+
     // محاسبه میزان استفاده از اعتبار
     final creditUsagePercent = customer.creditLimit > 0
-        ? (customer.totalDebt / customer.creditLimit).clamp(0.0, 1.0)
+        ? (computedDebt / customer.creditLimit).clamp(0.0, 1.0)
         : 0.0;
-    final isOverCredit = customer.isOverCredit;
+    final isOverCredit =
+        computedDebt > customer.creditLimit && customer.creditLimit > 0;
 
     return Scaffold(
       // ─── نوار بالا ─────────────────────────────────────────────
@@ -135,7 +142,7 @@ class _CustomerDetailBody extends ConsumerWidget {
             const SizedBox(height: 16),
 
             // ─── کارت خلاصه مالی ────────────────────────────────
-            _buildFinancialCard(context, isOverCredit),
+            _buildFinancialCard(context, isOverCredit, computedDebt),
             const SizedBox(height: 16),
 
             // ─── تاریخچه خرید ───────────────────────────────────
@@ -286,14 +293,15 @@ class _CustomerDetailBody extends ConsumerWidget {
   }
 
   /// کارت خلاصه مالی: بدهی کل و سقف اعتبار
-  Widget _buildFinancialCard(BuildContext context, bool isOverCredit) {
+  Widget _buildFinancialCard(BuildContext context, bool isOverCredit, double computedDebt) {
+    final hasDebt = computedDebt > 0;
     return Row(
       children: [
         // کارت بدهی کل
         Expanded(
           child: Card(
             elevation: 0,
-            color: customer.hasDebt ? AppColors.errorLight : AppColors.successLight,
+            color: hasDebt ? AppColors.errorLight : AppColors.successLight,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),
             child: Padding(
@@ -306,21 +314,17 @@ class _CustomerDetailBody extends ConsumerWidget {
                     style: TextStyle(
                       fontFamily: 'Vazirmatn',
                       fontSize: 12,
-                      color: customer.hasDebt
-                          ? AppColors.error
-                          : AppColors.success,
+                      color: hasDebt ? AppColors.error : AppColors.success,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    CurrencyFormatter.format(customer.totalDebt),
+                    CurrencyFormatter.format(computedDebt),
                     style: TextStyle(
                       fontFamily: 'Vazirmatn',
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: customer.hasDebt
-                          ? AppColors.error
-                          : AppColors.success,
+                      color: hasDebt ? AppColors.error : AppColors.success,
                     ),
                   ),
                 ],

@@ -271,8 +271,8 @@ class _AppShellState extends State<_AppShell> {
             label: _labels[i],
           ),
         ),
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-        height: 64,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        height: 72,
       ),
     );
   }

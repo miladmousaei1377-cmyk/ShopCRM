@@ -357,57 +357,25 @@ class _CustomerTile extends StatelessWidget {
             ),
 
             // ─── نشان‌گر بدهی ────────────────────────────────────
-            if (hasDebt)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.errorLight,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: AppColors.error.withOpacity(0.4)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text(
-                      'بدهی',
-                      style: TextStyle(
-                        fontFamily: 'Vazirmatn',
-                        fontSize: 10,
-                        color: AppColors.error,
-                      ),
-                    ),
-                    Text(
-                      CurrencyFormatter.format(customer.totalDebt),
-                      style: const TextStyle(
-                        fontFamily: 'Vazirmatn',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.error,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.successLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'بی‌بدهی',
-                  style: TextStyle(
-                    fontFamily: 'Vazirmatn',
-                    fontSize: 11,
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
-                  ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: hasDebt ? AppColors.errorLight : AppColors.successLight,
+                borderRadius: BorderRadius.circular(12),
+                border: hasDebt
+                    ? Border.all(color: AppColors.error.withOpacity(0.4))
+                    : null,
+              ),
+              child: Text(
+                hasDebt ? 'بدهکار' : 'تسویه',
+                style: TextStyle(
+                  fontFamily: 'Vazirmatn',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: hasDebt ? AppColors.error : AppColors.success,
                 ),
               ),
+            ),
             const SizedBox(width: 8),
             const Icon(Icons.chevron_left,
                 color: AppColors.textHint, size: 20),

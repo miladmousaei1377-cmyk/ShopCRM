@@ -23,6 +23,10 @@ class SettingsScreen extends ConsumerWidget {
         appBar: AppBar(title: const Text(AppStrings.settings)),
         body: ListView(
           children: [
+            // پروفایل فروشگاه
+            const _ProfileSection(),
+            const Divider(height: 1),
+
             // وضعیت سرور
             _SettingsTile(
               icon: Icons.cloud_sync,
@@ -164,6 +168,183 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 }
+
+// ─── پروفایل فروشگاه ─────────────────────────────────────────────────────────
+
+class _ProfileSection extends StatefulWidget {
+  const _ProfileSection();
+
+  @override
+  State<_ProfileSection> createState() => _ProfileSectionState();
+}
+
+class _ProfileSectionState extends State<_ProfileSection> {
+  String _ownerName = '';
+  String _storeName = '';
+  String _phone = '';
+
+  static const _keyOwner = 'profile_owner_name';
+  static const _keyStore = 'profile_store_name';
+  static const _keyPhone = 'profile_phone';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _ownerName = prefs.getString(_keyOwner) ?? '';
+        _storeName = prefs.getString(_keyStore) ?? '';
+        _phone = prefs.getString(_keyPhone) ?? '';
+      });
+    }
+  }
+
+  void _openEdit() {
+    final ownerCtrl = TextEditingController(text: _ownerName);
+    final storeCtrl = TextEditingController(text: _storeName);
+    final phoneCtrl = TextEditingController(text: _phone);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('ویرایش پروفایل',
+              style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: storeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'نام فروشگاه',
+                  labelStyle: TextStyle(fontFamily: 'Vazirmatn'),
+                  prefixIcon: Icon(Icons.store_outlined),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ownerCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'نام صاحب فروشگاه',
+                  labelStyle: TextStyle(fontFamily: 'Vazirmatn'),
+                  prefixIcon: Icon(Icons.person_outline),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'شماره تماس',
+                  labelStyle: TextStyle(fontFamily: 'Vazirmatn'),
+                  prefixIcon: Icon(Icons.phone_outlined),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(AppStrings.cancel,
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString(_keyOwner, ownerCtrl.text.trim());
+                await prefs.setString(_keyStore, storeCtrl.text.trim());
+                await prefs.setString(_keyPhone, phoneCtrl.text.trim());
+                if (ctx.mounted) Navigator.pop(ctx);
+                await _load();
+              },
+              child: const Text(AppStrings.save,
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName = _storeName.isNotEmpty ? _storeName : 'فروشگاه هوشمند';
+    final displayOwner = _ownerName.isNotEmpty ? _ownerName : 'تنظیم نشده';
+
+    return InkWell(
+      onTap: _openEdit,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: AppColors.primary.withOpacity(0.12),
+              child: Text(
+                displayName.isNotEmpty ? displayName[0] : 'ف',
+                style: const TextStyle(
+                  fontFamily: 'Vazirmatn',
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontFamily: 'Vazirmatn',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'مدیر: $displayOwner',
+                    style: const TextStyle(
+                      fontFamily: 'Vazirmatn',
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  if (_phone.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      _phone,
+                      style: const TextStyle(
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Icon(Icons.edit_outlined, color: AppColors.textHint, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── ردیف تنظیمات ────────────────────────────────────────────────────────────
 
 class _SettingsTile extends StatelessWidget {
   final IconData icon;

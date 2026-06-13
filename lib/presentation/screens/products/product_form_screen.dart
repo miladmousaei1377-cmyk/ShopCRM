@@ -271,8 +271,32 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           child: BarcodeScannerWidget(
-            onDetected: (barcode) {
+            onDetected: (barcode) async {
               setState(() => _barcodeCtrl.text = barcode);
+              // جستجوی محصول با این بارکد در پایگاه داده
+              final product = await ref.read(productRepositoryProvider).findByBarcode(barcode);
+              if (product != null && mounted) {
+                // محصول موجود است — پر کردن خودکار تمام فیلدها
+                setState(() {
+                  _nameCtrl.text = product.name;
+                  _purchasePriceCtrl.text = CurrencyFormatter.formatNumber(product.purchasePrice);
+                  _sellPriceCtrl.text = CurrencyFormatter.formatNumber(product.sellPrice);
+                  _stockCtrl.text = product.stockQuantity.toString();
+                  _minStockCtrl.text = product.minStockAlert.toString();
+                  _purchasePrice = product.purchasePrice;
+                  _sellPrice = product.sellPrice;
+                  _existingProduct = product;
+                });
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('محصول "${product.name}" پیدا شد',
+                          style: const TextStyle(fontFamily: 'Vazirmatn')),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+              }
             },
           ),
         ),

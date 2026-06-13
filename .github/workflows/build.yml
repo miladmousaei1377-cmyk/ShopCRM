@@ -45,14 +45,14 @@ jobs:
         run: flutter test
         continue-on-error: true
 
-      - name: بیلد APK (debug برای دانلود سریع)
-        run: flutter build apk --debug --no-tree-shake-icons
+      - name: بیلد APK (split-per-abi برای حجم کمتر)
+        run: flutter build apk --debug --split-per-abi --no-tree-shake-icons
 
-      - name: آپلود APK
+      - name: آپلود APK (arm64 — مناسب اکثر گوشی‌های اندروید ۵ سال اخیر)
         uses: actions/upload-artifact@v4
         with:
           name: shopcrm-android-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
           retention-days: 30
 
   # ─── بیلد ویندوز ────────────────────────────────────────────────────────────

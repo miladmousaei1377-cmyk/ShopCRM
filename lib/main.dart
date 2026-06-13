@@ -23,8 +23,8 @@ void main() async {
     statusBarIconBrightness: Brightness.light,
   ));
 
-  // راه‌اندازی سرویس اعلان‌ها (هشدار کمبود موجودی و...)
-  await NotificationService.init();
+  // راه‌اندازی سرویس اعلان‌ها در پس‌زمینه — بدون block کردن startup
+  NotificationService.init().catchError((_) {});
 
   // ProviderScope: ریشه Riverpod — همه Provider‌ها داخل این زنده می‌مانند
   runApp(
