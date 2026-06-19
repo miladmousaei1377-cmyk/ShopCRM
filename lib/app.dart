@@ -324,8 +324,9 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
       location = GoRouterState.of(context).matchedLocation;
     } catch (_) {}
 
-    // ─── دسکتاپ / تبلت ───────────────────────────────────────────────────────
-    if (_isDesktop || isWide) {
+    // ─── دسکتاپ: فقط روی ویندوز/لینوکس/مک یا نمایشگر عریض غیراندروید ────────
+    final isMobileOS = Platform.isAndroid || Platform.isIOS;
+    if (!isMobileOS && (_isDesktop || isWide)) {
       final idx = _desktopIndexFromLocation(location);
       return Scaffold(
         body: Row(
