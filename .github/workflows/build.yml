@@ -79,6 +79,9 @@ jobs:
       - name: تولید کد
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: ایجاد پروژه ویندوز
+        run: flutter create --platforms=windows .
+
       - name: بیلد Windows
         run: flutter build windows --release
 
