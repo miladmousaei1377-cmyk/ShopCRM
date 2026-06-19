@@ -79,15 +79,30 @@ jobs:
       - name: تولید کد
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: ایجاد پروژه ویندوز
-        run: flutter create --platforms=windows .
+      - name: آماده‌سازی آیکن ویندوز
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path windows\runner\resources
+          Copy-Item android\app\src\main\res\mipmap-xxxhdpi\ic_launcher.png windows\runner\resources\app_icon.png
+          # تبدیل PNG به ICO با PowerShell
+          Add-Type -AssemblyName System.Drawing
+          $png = [System.Drawing.Image]::FromFile("$PWD\windows\runner\resources\app_icon.png")
+          $ico_path = "$PWD\windows\runner\resources\app_icon.ico"
+          $bitmap = New-Object System.Drawing.Bitmap($png)
+          $icon = [System.Drawing.Icon]::FromHandle($bitmap.GetHicon())
+          $stream = [System.IO.File]::OpenWrite($ico_path)
+          $icon.Save($stream)
+          $stream.Close()
+          $icon.Dispose()
+          $bitmap.Dispose()
+          $png.Dispose()
 
       - name: بیلد Windows
         run: flutter build windows --release
 
-      - name: آپلود خروجی ویندوز
+      - name: آپلود خروجی ویندوز (ZIP)
         uses: actions/upload-artifact@v4
         with:
           name: shopcrm-windows-release
           path: build/windows/x64/runner/Release/
-          retention-days: 14
+          retention-days: 30
