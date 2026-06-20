@@ -1,17 +1,16 @@
-name: Build & Test
+name: Build Android APK
 
 on:
   push:
     branches: [main, master, 'claude/**']
   pull_request:
     branches: [main, master]
-  workflow_dispatch:  # اجرای دستی از GitHub UI
+  workflow_dispatch:
 
 env:
   FLUTTER_VERSION: '3.44.0'
 
 jobs:
-  # ─── بیلد APK اندروید ───────────────────────────────────────────────────────
   build-android:
     name: Build Android APK
     runs-on: ubuntu-latest
@@ -53,62 +52,4 @@ jobs:
         with:
           name: shopcrm-android-apk
           path: build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
-          retention-days: 30
-
-  # ─── بیلد ویندوز ────────────────────────────────────────────────────────────
-  build-windows:
-    name: Build Windows EXE
-    runs-on: windows-latest
-    if: ${{ true }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: نصب Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: فعال‌سازی Windows desktop
-        run: flutter config --enable-windows-desktop
-
-      - name: نصب وابستگی‌ها
-        run: flutter pub get
-
-      - name: تولید کد
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: ایجاد پروژه ویندوز
-        run: flutter create --platforms=windows . --project-name shop_crm
-
-      - name: آماده‌سازی آیکن ویندوز
-        shell: powershell
-        run: |
-          New-Item -ItemType Directory -Force -Path windows\runner\resources
-          Copy-Item android\app\src\main\res\mipmap-xxxhdpi\ic_launcher.png windows\runner\resources\app_icon.png
-          Add-Type -AssemblyName System.Drawing
-          $png = [System.Drawing.Image]::FromFile("$PWD\windows\runner\resources\app_icon.png")
-          $ico_path = "$PWD\windows\runner\resources\app_icon.ico"
-          $bitmap = New-Object System.Drawing.Bitmap($png)
-          $icon = [System.Drawing.Icon]::FromHandle($bitmap.GetHicon())
-          $stream = [System.IO.File]::OpenWrite($ico_path)
-          $icon.Save($stream)
-          $stream.Close()
-          $icon.Dispose()
-          $bitmap.Dispose()
-          $png.Dispose()
-          # عنوان پنجره فارسی
-          $main = Get-Content windows\runner\main.cpp -Raw
-          $main = $main -replace 'window\.Create\(L"[^"]*"', 'window.Create(L"فروشگاه هوشمند"'
-          Set-Content windows\runner\main.cpp $main -Encoding UTF8
-
-      - name: بیلد Windows
-        run: flutter build windows --release
-
-      - name: آپلود خروجی ویندوز (ZIP)
-        uses: actions/upload-artifact@v4
-        with:
-          name: shopcrm-windows-release
-          path: build/windows/x64/runner/Release/
           retention-days: 30

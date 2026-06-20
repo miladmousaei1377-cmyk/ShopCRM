@@ -1,0 +1,90 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main, master, 'claude/**']
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.44.0'
+  # suppress deprecation error in local_auth_windows (uses experimental/coroutine)
+  CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
+
+jobs:
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+
+    steps:
+      # ─── ۱. دریافت کد ────────────────────────────────────────────────────────
+      - name: دریافت کد
+        uses: actions/checkout@v4
+
+      # ─── ۲. نصب Flutter ──────────────────────────────────────────────────────
+      - name: نصب Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # ─── ۳. فعال‌سازی Windows desktop ────────────────────────────────────────
+      - name: فعال‌سازی Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      # ─── ۴. نصب وابستگی‌ها ──────────────────────────────────────────────────
+      - name: نصب وابستگی‌ها
+        run: flutter pub get
+
+      # ─── ۵. تولید کد خودکار (drift + riverpod) ──────────────────────────────
+      - name: تولید کد
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # ─── ۶. ایجاد پروژه ویندوز ──────────────────────────────────────────────
+      - name: ایجاد پروژه ویندوز
+        run: flutter create --platforms=windows . --project-name shop_crm
+
+      # ─── ۷. آماده‌سازی آیکن و عنوان فارسی ──────────────────────────────────
+      - name: آماده‌سازی آیکن و عنوان پنجره
+        shell: powershell
+        run: |
+          # ساخت پوشه آیکن
+          New-Item -ItemType Directory -Force -Path windows\runner\resources | Out-Null
+
+          # کپی PNG لانچر اندروید
+          Copy-Item android\app\src\main\res\mipmap-xxxhdpi\ic_launcher.png `
+                    windows\runner\resources\app_icon.png
+
+          # تبدیل PNG به ICO
+          Add-Type -AssemblyName System.Drawing
+          $src  = [System.Drawing.Image]::FromFile("$PWD\windows\runner\resources\app_icon.png")
+          $bmp  = New-Object System.Drawing.Bitmap($src)
+          $ico  = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
+          $fs   = [System.IO.File]::OpenWrite("$PWD\windows\runner\resources\app_icon.ico")
+          $ico.Save($fs)
+          $fs.Close(); $ico.Dispose(); $bmp.Dispose(); $src.Dispose()
+
+          # جایگزینی عنوان پنجره با نام فارسی
+          $cpp = Get-Content windows\runner\main.cpp -Raw -Encoding UTF8
+          $cpp = $cpp -replace 'window\.Create\(L"[^"]*"', 'window.Create(L"فروشگاه هوشمند"'
+          [System.IO.File]::WriteAllText("$PWD\windows\runner\main.cpp", $cpp, [System.Text.Encoding]::UTF8)
+
+      # ─── ۸. بیلد Release ────────────────────────────────────────────────────
+      - name: بیلد Windows (Release)
+        run: flutter build windows --release
+
+      # ─── ۹. فشرده‌سازی خروجی ────────────────────────────────────────────────
+      - name: فشرده‌سازی خروجی
+        shell: powershell
+        run: |
+          Compress-Archive `
+            -Path build\windows\x64\runner\Release\* `
+            -DestinationPath shopcrm-windows.zip
+
+      # ─── ۱۰. آپلود ──────────────────────────────────────────────────────────
+      - name: آپلود فایل ZIP ویندوز
+        uses: actions/upload-artifact@v4
+        with:
+          name: shopcrm-windows-release
+          path: shopcrm-windows.zip
+          retention-days: 30
