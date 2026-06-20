@@ -35,8 +35,8 @@ class UsbPrinterService extends PrinterService {
     required String storePhone,
     required String storeAddress,
   }) async {
-    final bytes = EscPosBuilder.buildReceipt(
-      invoice,
+    final bytes = await EscPosBuilder.buildReceiptBytes(
+      invoice: invoice,
       storeName: storeName,
       storePhone: storePhone,
       storeAddress: storeAddress,
