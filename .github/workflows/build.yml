@@ -79,12 +79,14 @@ jobs:
       - name: تولید کد
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: ایجاد پروژه ویندوز
+        run: flutter create --platforms=windows . --project-name shop_crm
+
       - name: آماده‌سازی آیکن ویندوز
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path windows\runner\resources
           Copy-Item android\app\src\main\res\mipmap-xxxhdpi\ic_launcher.png windows\runner\resources\app_icon.png
-          # تبدیل PNG به ICO با PowerShell
           Add-Type -AssemblyName System.Drawing
           $png = [System.Drawing.Image]::FromFile("$PWD\windows\runner\resources\app_icon.png")
           $ico_path = "$PWD\windows\runner\resources\app_icon.ico"
@@ -96,6 +98,10 @@ jobs:
           $icon.Dispose()
           $bitmap.Dispose()
           $png.Dispose()
+          # عنوان پنجره فارسی
+          $main = Get-Content windows\runner\main.cpp -Raw
+          $main = $main -replace 'window\.Create\(L"[^"]*"', 'window.Create(L"فروشگاه هوشمند"'
+          Set-Content windows\runner\main.cpp $main -Encoding UTF8
 
       - name: بیلد Windows
         run: flutter build windows --release
