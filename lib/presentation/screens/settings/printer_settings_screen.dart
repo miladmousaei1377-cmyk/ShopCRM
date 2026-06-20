@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
@@ -5,6 +6,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/validators.dart';
 import '../../../services/printer/bluetooth_printer_service.dart';
 import '../../../services/printer/wifi_printer_service.dart';
+import '../../../services/printer/usb_printer_service.dart';
 import '../../providers/printer_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
 
@@ -66,8 +68,20 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                   _Section(
                     title: 'نوع پرینتر',
                     child: Row(
-                      children: PrinterType.values.map((type) {
+                      children: PrinterType.values
+                          // بلوتوث فقط روی موبایل
+                          .where((t) => t != PrinterType.bluetooth || (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS))
+                          // USB فقط روی ویندوز
+                          .where((t) => t != PrinterType.usb || Platform.isWindows)
+                          .map((type) {
                         final selected = state.settings.type == type;
+                        IconData icon;
+                        String label;
+                        switch (type) {
+                          case PrinterType.bluetooth: icon = Icons.bluetooth; label = AppStrings.bluetoothPrinter;
+                          case PrinterType.wifi: icon = Icons.wifi; label = AppStrings.wifiPrinter;
+                          case PrinterType.usb: icon = Icons.usb; label = 'پرینتر USB/کابل';
+                        }
                         return Expanded(
                           child: GestureDetector(
                             onTap: () {
@@ -88,17 +102,11 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                               ),
                               child: Column(
                                 children: [
-                                  Icon(
-                                    type == PrinterType.bluetooth ? Icons.bluetooth : Icons.wifi,
-                                    color: selected ? AppColors.primary : AppColors.textSecondary,
-                                    size: 28,
-                                  ),
+                                  Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary, size: 28),
                                   const SizedBox(height: 6),
-                                  Text(
-                                    type == PrinterType.bluetooth ? AppStrings.bluetoothPrinter : AppStrings.wifiPrinter,
+                                  Text(label,
                                     style: TextStyle(
-                                      fontFamily: 'Vazirmatn',
-                                      fontSize: 13,
+                                      fontFamily: 'Vazirmatn', fontSize: 13,
                                       fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
                                       color: selected ? AppColors.primary : AppColors.textSecondary,
                                     ),
@@ -220,6 +228,57 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                         ],
                       ),
                     ),
+                  // تنظیمات USB
+                  if (state.settings.type == PrinterType.usb)
+                    _Section(
+                      title: 'پرینتر USB/کابل',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (state.settings.usbPrinterName.isNotEmpty)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.print, color: AppColors.primary),
+                              title: Text(state.settings.usbPrinterName,
+                                  style: const TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w600)),
+                              trailing: const Chip(
+                                label: Text('انتخاب‌شده', style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 11)),
+                                backgroundColor: AppColors.successLight,
+                              ),
+                            ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.search, size: 18),
+                              label: const Text('کشف پرینترهای متصل به ویندوز',
+                                  style: TextStyle(fontFamily: 'Vazirmatn')),
+                              onPressed: _discoverUsbPrinters,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.network_ping, size: 18),
+                                  label: const Text('تست اتصال', style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                                  onPressed: _testWifiConnection,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.print, size: 18),
+                                  label: const Text(AppStrings.testPrint, style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                                  onPressed: _testPrint,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
                   const SizedBox(height: 16),
 
                   // اطلاعات فروشگاه
@@ -364,6 +423,51 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
         storeName: _storeNameCtrl.text.trim(),
         storePhone: _storePhoneCtrl.text.trim(),
         storeAddress: _storeAddressCtrl.text.trim(),
+      ),
+    );
+  }
+
+  Future<void> _discoverUsbPrinters() async {
+    final printers = await UsbPrinterService.listWindowsPrinters();
+    if (!mounted) return;
+    if (printers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('پرینتری یافت نشد. مطمئن شوید پرینتر نصب و روشن است.',
+            style: TextStyle(fontFamily: 'Vazirmatn')),
+        backgroundColor: AppColors.warning,
+      ));
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (_) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('پرینترهای ویندوز', style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: printers.map((name) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.print_outlined, color: AppColors.primary),
+                title: Text(name, style: const TextStyle(fontFamily: 'Vazirmatn')),
+                onTap: () {
+                  ref.read(printerProvider.notifier).saveSettings(
+                    ref.read(printerProvider).settings.copyWith(usbPrinterName: name),
+                  );
+                  Navigator.of(context).pop();
+                },
+              )).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(AppStrings.close, style: TextStyle(fontFamily: 'Vazirmatn')),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/models/invoice.dart';
@@ -5,8 +6,9 @@ import '../../services/printer/printer_service.dart';
 import '../../services/printer/bluetooth_printer_service.dart';
 import '../../services/printer/escpos_builder.dart';
 import '../../services/printer/wifi_printer_service.dart';
+import '../../services/printer/usb_printer_service.dart';
 
-enum PrinterType { bluetooth, wifi }
+enum PrinterType { bluetooth, wifi, usb }
 
 class PrinterSettings {
   final PrinterType type;
@@ -14,6 +16,7 @@ class PrinterSettings {
   final String? bluetoothDeviceName;
   final String wifiIp;
   final int wifiPort;
+  final String usbPrinterName;
   final String storeName;
   final String storePhone;
   final String storeAddress;
@@ -24,6 +27,7 @@ class PrinterSettings {
     this.bluetoothDeviceName,
     this.wifiIp = '192.168.1.100',
     this.wifiPort = 9100,
+    this.usbPrinterName = '',
     this.storeName = 'فروشگاه هوشمند',
     this.storePhone = '',
     this.storeAddress = '',
@@ -35,6 +39,7 @@ class PrinterSettings {
     String? bluetoothDeviceName,
     String? wifiIp,
     int? wifiPort,
+    String? usbPrinterName,
     String? storeName,
     String? storePhone,
     String? storeAddress,
@@ -45,6 +50,7 @@ class PrinterSettings {
       bluetoothDeviceName: bluetoothDeviceName ?? this.bluetoothDeviceName,
       wifiIp: wifiIp ?? this.wifiIp,
       wifiPort: wifiPort ?? this.wifiPort,
+      usbPrinterName: usbPrinterName ?? this.usbPrinterName,
       storeName: storeName ?? this.storeName,
       storePhone: storePhone ?? this.storePhone,
       storeAddress: storeAddress ?? this.storeAddress,
@@ -101,9 +107,9 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    final type = prefs.getString('printer_type') == 'bluetooth'
-        ? PrinterType.bluetooth
-        : PrinterType.wifi;
+    final typeStr = prefs.getString('printer_type') ?? 'wifi';
+    final type = PrinterType.values.firstWhere(
+      (t) => t.name == typeStr, orElse: () => PrinterType.wifi);
     state = state.copyWith(
       settings: PrinterSettings(
         type: type,
@@ -111,6 +117,7 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
         bluetoothDeviceName: prefs.getString('bt_device_name'),
         wifiIp: prefs.getString('wifi_ip') ?? '192.168.1.100',
         wifiPort: prefs.getInt('wifi_port') ?? 9100,
+        usbPrinterName: prefs.getString('usb_printer_name') ?? '',
         storeName: prefs.getString('store_name') ?? 'فروشگاه هوشمند',
         storePhone: prefs.getString('store_phone') ?? '',
         storeAddress: prefs.getString('store_address') ?? '',
@@ -123,6 +130,7 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
     await prefs.setString('printer_type', settings.type.name);
     await prefs.setString('wifi_ip', settings.wifiIp);
     await prefs.setInt('wifi_port', settings.wifiPort);
+    await prefs.setString('usb_printer_name', settings.usbPrinterName);
     await prefs.setString('store_name', settings.storeName);
     await prefs.setString('store_phone', settings.storePhone);
     await prefs.setString('store_address', settings.storeAddress);
@@ -131,7 +139,6 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
       await prefs.setString('bt_device_name', settings.bluetoothDeviceName ?? '');
     }
     state = state.copyWith(settings: settings);
-    // قطع ارتباط اگه تنظیمات تغییر کرد
     _service = null;
     state = state.copyWith(isConnected: false);
   }
@@ -139,15 +146,22 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
   Future<bool> connect() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      _service = state.settings.type == PrinterType.bluetooth
-          ? BluetoothPrinterService(
-              deviceId: state.settings.bluetoothDeviceId ?? '',
-              deviceName: state.settings.bluetoothDeviceName ?? '',
-            )
-          : WiFiPrinterService(
-              ip: state.settings.wifiIp,
-              port: state.settings.wifiPort,
-            );
+      switch (state.settings.type) {
+        case PrinterType.bluetooth:
+          _service = BluetoothPrinterService(
+            deviceId: state.settings.bluetoothDeviceId ?? '',
+            deviceName: state.settings.bluetoothDeviceName ?? '',
+          );
+        case PrinterType.usb:
+          _service = UsbPrinterService(
+            printerName: state.settings.usbPrinterName,
+          );
+        case PrinterType.wifi:
+          _service = WiFiPrinterService(
+            ip: state.settings.wifiIp,
+            port: state.settings.wifiPort,
+          );
+      }
       final connected = await _service!.connect();
       state = state.copyWith(isConnected: connected, isLoading: false,
           error: connected ? null : 'اتصال به پرینتر ناموفق بود');

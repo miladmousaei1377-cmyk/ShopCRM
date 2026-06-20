@@ -89,14 +89,16 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // کارت‌های آمار
-                GridView.count(
-                  crossAxisCount: 2,
+                // کارت‌های آمار — ۲ ستون روی موبایل، ۴ ستون روی دسکتاپ
+                LayoutBuilder(builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 700;
+                  return GridView.count(
+                  crossAxisCount: isWide ? 4 : 2,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 1.25,
+                  childAspectRatio: isWide ? 2.2 : 1.25,
                   children: [
                     StatCard(
                       title: AppStrings.todaySales,
@@ -145,7 +147,8 @@ class DashboardScreen extends ConsumerWidget {
                       onTap: () => context.go('/customers'),
                     ),
                   ],
-                ),
+                );
+                }),
                 const SizedBox(height: 16),
 
                 // کارت خلاصه پیش‌بینی

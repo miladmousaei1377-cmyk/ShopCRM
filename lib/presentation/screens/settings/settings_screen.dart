@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,10 +30,12 @@ class SettingsScreen extends ConsumerWidget {
             const _ProfileSection(),
             const Divider(height: 1),
 
-            // ─── امنیت ───────────────────────────────────────────────────────
-            _SectionLabel(label: 'امنیت'),
-            const _BiometricTile(),
-            const Divider(height: 1),
+            // ─── امنیت (فقط موبایل — اثر انگشت روی ویندوز ندارد) ─────────────
+            if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) ...[
+              _SectionLabel(label: 'امنیت'),
+              const _BiometricTile(),
+              const Divider(height: 1),
+            ],
 
             // ─── بکاپ ────────────────────────────────────────────────────────
             _SectionLabel(label: 'پشتیبان‌گیری'),
