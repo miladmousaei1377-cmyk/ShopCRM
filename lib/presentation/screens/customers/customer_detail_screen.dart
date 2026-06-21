@@ -764,7 +764,7 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
     if (paid <= 0) return;
     setState(() => _isProcessing = true);
     try {
-      final newDebt = (widget.debtAmount - paid).clamp(0, double.infinity);
+      final newDebt = (widget.debtAmount - paid).clamp(0.0, double.infinity);
       await ref.read(customerRepositoryProvider).updateDebt(
           widget.customer.id, newDebt);
       widget.onPaid();
