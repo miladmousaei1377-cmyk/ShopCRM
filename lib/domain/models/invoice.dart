@@ -3,7 +3,7 @@ import 'invoice_item.dart';
 import 'product.dart';
 
 /// روش‌های پرداخت قابل قبول
-enum PaymentMethod { cash, card, credit }
+enum PaymentMethod { cash, card, credit, pos }
 
 /// وضعیت فاکتور
 enum InvoiceStatus { draft, completed, cancelled, refunded }
@@ -15,6 +15,7 @@ extension PaymentMethodLabel on PaymentMethod {
       case PaymentMethod.cash:   return 'نقد';
       case PaymentMethod.card:   return 'کارت';
       case PaymentMethod.credit: return 'نسیه';
+      case PaymentMethod.pos:    return 'پوز';
     }
   }
 }

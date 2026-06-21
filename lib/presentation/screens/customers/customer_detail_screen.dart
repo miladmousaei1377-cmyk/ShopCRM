@@ -477,6 +477,9 @@ class _InvoiceHistoryTile extends StatelessWidget {
       case PaymentMethod.credit:
         paymentColor = AppColors.warning;
         break;
+      case PaymentMethod.pos:
+        paymentColor = AppColors.posColor;
+        break;
     }
 
     return InkWell(
@@ -496,9 +499,11 @@ class _InvoiceHistoryTile extends StatelessWidget {
               child: Icon(
                 invoice.paymentMethod == PaymentMethod.cash
                     ? Icons.payments_outlined
-                    : invoice.paymentMethod == PaymentMethod.card
-                        ? Icons.credit_card_outlined
-                        : Icons.account_balance_wallet_outlined,
+                    : invoice.paymentMethod == PaymentMethod.pos
+                        ? Icons.credit_card
+                        : invoice.paymentMethod == PaymentMethod.card
+                            ? Icons.credit_card_outlined
+                            : Icons.account_balance_wallet_outlined,
                 color: paymentColor,
                 size: 20,
               ),

@@ -27,6 +27,7 @@ class CartState {
   final bool isSubmitting;           // در حال ثبت فاکتور
   final String? error;               // پیام خطا
   final int? lastInvoiceId;          // شناسه فاکتور ثبت‌شده (برای پرینت)
+  final String? posTrackingNumber;   // شماره پیگیری پوز
 
   const CartState({
     this.items = const [],
@@ -38,6 +39,7 @@ class CartState {
     this.isSubmitting = false,
     this.error,
     this.lastInvoiceId,
+    this.posTrackingNumber,
   });
 
   /// جمع کل قبل از تخفیف
@@ -67,6 +69,8 @@ class CartState {
     bool? isSubmitting,
     String? error,
     int? lastInvoiceId,
+    String? posTrackingNumber,
+    bool clearPosTracking = false,
   }) {
     return CartState(
       items: items ?? this.items,
@@ -78,6 +82,7 @@ class CartState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       error: error,
       lastInvoiceId: lastInvoiceId ?? this.lastInvoiceId,
+      posTrackingNumber: clearPosTracking ? null : (posTrackingNumber ?? this.posTrackingNumber),
     );
   }
 }
@@ -154,7 +159,14 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   void setPaymentMethod(PaymentMethod method) =>
-      state = state.copyWith(paymentMethod: method);
+      state = state.copyWith(paymentMethod: method, clearPosTracking: true);
+
+  void setPosPayment(String? trackingNumber) {
+    state = state.copyWith(
+      paymentMethod: PaymentMethod.pos,
+      posTrackingNumber: trackingNumber,
+    );
+  }
 
   void setTax(double tax) =>
       state = state.copyWith(tax: tax);
@@ -166,6 +178,10 @@ class CartNotifier extends StateNotifier<CartState> {
     state = state.copyWith(isSubmitting: true, error: null);
 
     try {
+      final posNote = state.posTrackingNumber != null
+          ? 'پوز - شماره پیگیری: ${state.posTrackingNumber}'
+          : null;
+
       final invoice = Invoice(
         id: 0,
         invoiceNumber: _generateInvoiceNumber(),
@@ -177,6 +193,7 @@ class CartNotifier extends StateNotifier<CartState> {
         tax: state.tax,
         paymentMethod: state.paymentMethod,
         status: InvoiceStatus.completed,
+        notes: posNote,
         createdAt: DateTime.now(),
       );
 

@@ -4,8 +4,8 @@ import 'printer_service.dart';
 import 'escpos_builder.dart';
 import '../../domain/models/invoice.dart';
 
-/// پرینتر USB/کابل از طریق Windows Printer API
-/// پرینتر باید در ویندوز نصب و به عنوان Printer شناخته شده باشد
+/// پرینتر USB از طریق Windows Printer API
+/// از PowerShell برای شناسایی و پرینت استفاده می‌کند
 class UsbPrinterService extends PrinterService {
   final String printerName;
   bool _connected = false;
@@ -18,15 +18,23 @@ class UsbPrinterService extends PrinterService {
   @override
   Future<bool> connect() async {
     if (printerName.isEmpty) return false;
-    if (Platform.isWindows) {
-      // بررسی وجود پرینتر در لیست ویندوز
+    if (!Platform.isWindows) return false;
+    try {
+      // PowerShell برای بررسی وجود پرینتر (wmic در Windows 11 منسوخ شده)
       final result = await Process.run(
-        'wmic', ['printer', 'where', 'name="$printerName"', 'get', 'name'],
+        'powershell',
+        [
+          '-Command',
+          'Get-Printer -Name "$printerName" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name',
+        ],
+        stdoutEncoding: const SystemEncoding(),
       );
-      _connected = result.stdout.toString().contains(printerName);
+      _connected = result.stdout.toString().trim().isNotEmpty;
       return _connected;
+    } catch (_) {
+      _connected = false;
+      return false;
     }
-    return false;
   }
 
   @override
@@ -44,17 +52,67 @@ class UsbPrinterService extends PrinterService {
     await _sendRaw(bytes);
   }
 
-  /// ارسال داده خام ESC/POS به پرینتر از طریق Windows RAW printing
+  /// ارسال داده خام ESC/POS به پرینتر از طریق پورت مستقیم
   Future<void> _sendRaw(List<int> bytes) async {
+    if (!Platform.isWindows) return;
+
     final temp = await getTemporaryDirectory();
-    final file = File('${temp.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.bin');
+    final file = File('${temp.path}\\receipt_${DateTime.now().millisecondsSinceEpoch}.bin');
     await file.writeAsBytes(bytes);
-    if (Platform.isWindows) {
-      await Process.run(
-        'cmd', ['/c', 'copy', '/b', file.path, r'\\.\' + printerName],
+
+    try {
+      // دریافت نام پورت پرینتر از PowerShell
+      final portResult = await Process.run(
+        'powershell',
+        [
+          '-Command',
+          '(Get-Printer -Name "$printerName" -ErrorAction SilentlyContinue).PortName',
+        ],
+        stdoutEncoding: const SystemEncoding(),
       );
+      final portName = portResult.stdout.toString().trim();
+
+      if (portName.isNotEmpty) {
+        // ارسال مستقیم به پورت (USB001، COM1 و غیره)
+        await Process.run(
+          'cmd',
+          ['/c', 'copy', '/b', file.path, r'\\.\' + portName],
+        );
+      } else {
+        // fallback: ارسال از طریق PowerShell با System.Printing
+        await _sendViaPowerShell(file.path);
+      }
+    } finally {
+      await file.delete().catchError((_) => file);
     }
-    await file.delete().catchError((_) => file);
+  }
+
+  /// ارسال از طریق .NET System.Printing (برای پرینترهای شبکه یا مدرن)
+  Future<void> _sendViaPowerShell(String filePath) async {
+    final escapedPath = filePath.replaceAll(r'\', r'\\');
+    final escapedName = printerName.replaceAll('"', '\\"');
+
+    final script = r'''
+Add-Type -AssemblyName System.Printing
+$ErrorActionPreference = "Stop"
+$ps = New-Object System.Printing.LocalPrintServer
+$pq = $ps.GetPrintQueue("''' + escapedName + r'''")
+$job = $pq.AddJob("ESC/POS")
+$stream = $job.JobStream
+$bytes = [System.IO.File]::ReadAllBytes("''' + escapedPath + r'''")
+$stream.Write($bytes, 0, $bytes.Length)
+$stream.Close()
+''';
+
+    final temp = await getTemporaryDirectory();
+    final scriptFile = File('${temp.path}\\ps_print_${DateTime.now().millisecondsSinceEpoch}.ps1');
+    await scriptFile.writeAsString(script, encoding: const SystemEncoding());
+
+    await Process.run(
+      'powershell',
+      ['-ExecutionPolicy', 'Bypass', '-File', scriptFile.path],
+    );
+    await scriptFile.delete().catchError((_) => scriptFile);
   }
 
   @override
@@ -62,19 +120,21 @@ class UsbPrinterService extends PrinterService {
     _connected = false;
   }
 
-  /// لیست تمام پرینترهای نصب‌شده در ویندوز
+  /// لیست تمام پرینترهای نصب‌شده در ویندوز (از PowerShell)
   static Future<List<String>> listWindowsPrinters() async {
     if (!Platform.isWindows) return [];
     try {
       final result = await Process.run(
-        'wmic', ['printer', 'get', 'name'],
+        'powershell',
+        ['-Command', 'Get-Printer | Select-Object -ExpandProperty Name'],
         stdoutEncoding: const SystemEncoding(),
       );
-      final lines = result.stdout.toString().split('\n')
+      return result.stdout
+          .toString()
+          .split('\n')
           .map((l) => l.trim())
-          .where((l) => l.isNotEmpty && l != 'Name')
+          .where((l) => l.isNotEmpty)
           .toList();
-      return lines;
     } catch (_) {
       return [];
     }

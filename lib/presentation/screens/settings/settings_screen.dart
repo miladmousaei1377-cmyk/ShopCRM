@@ -67,12 +67,19 @@ class SettingsScreen extends ConsumerWidget {
             ),
             const Divider(height: 1),
 
+            // ─── دستگاه پوز (فقط ویندوز) ────────────────────────────────────
+            if (Platform.isWindows) ...[
+              _SectionLabel(label: 'دستگاه پوز'),
+              const _PosSettingsTile(),
+              const Divider(height: 1),
+            ],
+
             // ─── سایر ────────────────────────────────────────────────────────
             _SectionLabel(label: 'سایر'),
             _SettingsTile(
               icon: Icons.print,
               title: AppStrings.printerSettings,
-              subtitle: 'تنظیم بلوتوث / وای‌فای',
+              subtitle: 'تنظیم بلوتوث / وای‌فای / USB',
               onTap: () => context.go('/settings/printer'),
             ),
             const Divider(height: 1),
@@ -519,6 +526,146 @@ class _ProfileSectionState extends State<_ProfileSection> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─── تنظیمات پوز (فقط ویندوز) ────────────────────────────────────────────────
+
+class _PosSettingsTile extends StatefulWidget {
+  const _PosSettingsTile();
+
+  @override
+  State<_PosSettingsTile> createState() => _PosSettingsTileState();
+}
+
+class _PosSettingsTileState extends State<_PosSettingsTile> {
+  String _posMode = 'manual'; // manual | auto
+  String _posPort = 'COM1';
+  final _portOptions = ['COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8'];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _posMode = prefs.getString('pos_mode') ?? 'manual';
+        _posPort = prefs.getString('pos_port') ?? 'COM1';
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pos_mode', _posMode);
+    await prefs.setString('pos_port', _posPort);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('تنظیمات پوز ذخیره شد', style: TextStyle(fontFamily: 'Vazirmatn')),
+        backgroundColor: AppColors.success,
+      ));
+    }
+  }
+
+  void _showPosDialog() {
+    String tempMode = _posMode;
+    String tempPort = _posPort;
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: StatefulBuilder(
+          builder: (ctx, setSt) => AlertDialog(
+            title: const Text('تنظیمات دستگاه پوز',
+                style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('حالت اتصال پوز:',
+                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                        color: AppColors.textSecondary)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Radio<String>(
+                      value: 'manual', groupValue: tempMode,
+                      onChanged: (v) => setSt(() => tempMode = v!),
+                    ),
+                    const Text('دستی (شماره پیگیری)',
+                        style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Radio<String>(
+                      value: 'auto', groupValue: tempMode,
+                      onChanged: (v) => setSt(() => tempMode = v!),
+                    ),
+                    const Text('اتوماتیک (پورت سریال)',
+                        style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                  ],
+                ),
+                if (tempMode == 'auto') ...[
+                  const SizedBox(height: 12),
+                  const Text('پورت سریال پوز:',
+                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                          color: AppColors.textSecondary)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    value: tempPort,
+                    items: _portOptions.map((p) => DropdownMenuItem(
+                      value: p, child: Text(p, style: const TextStyle(fontFamily: 'Vazirmatn'))
+                    )).toList(),
+                    onChanged: (v) => setSt(() => tempPort = v!),
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'مطمئن شوید دستگاه پوز به پورت مربوطه متصل است.',
+                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
+                        color: AppColors.textHint),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text(AppStrings.cancel, style: TextStyle(fontFamily: 'Vazirmatn')),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() { _posMode = tempMode; _posPort = tempPort; });
+                  _save();
+                  Navigator.pop(ctx);
+                },
+                child: const Text(AppStrings.save, style: TextStyle(fontFamily: 'Vazirmatn')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final modeLabel = _posMode == 'manual' ? 'دستی' : 'اتوماتیک - $_posPort';
+    return _SettingsTile(
+      icon: Icons.credit_card,
+      iconColor: const Color(0xFF00695C),
+      title: 'دستگاه پوز',
+      subtitle: 'حالت: $modeLabel',
+      onTap: _showPosDialog,
     );
   }
 }

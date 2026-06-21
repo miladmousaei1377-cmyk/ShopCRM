@@ -5,27 +5,17 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_converter.dart';
-import '../../../data/repositories/customer_repository.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/invoice_provider.dart';
-import '../../providers/cart_provider.dart';
 import '../../providers/sync_provider.dart';
 import '../../providers/report_provider.dart';
+import '../../providers/customer_provider.dart';
 import '../../widgets/common/stat_card.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/charts/sales_chart.dart';
 import '../../../domain/models/invoice.dart';
 import '../../providers/prediction_provider.dart';
 import '../../providers/theme_provider.dart';
-
-final totalDebtProvider = FutureProvider<double>((ref) {
-  return CustomerRepository(ref.watch(databaseProvider)).getTotalDebt();
-});
-
-final lowStockCountProvider = FutureProvider<int>((ref) async {
-  final products = await ref.watch(lowStockProductsProvider.future);
-  return products.length;
-});
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -34,10 +24,8 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final todaySales = ref.watch(todaySalesTotalProvider);
     final productCount = ref.watch(productsStreamProvider);
-    final lowStockCount = ref.watch(lowStockCountProvider);
-    final totalDebt = ref.watch(totalDebtProvider);
+    final customerCount = ref.watch(customersStreamProvider);
     final recentInvoices = ref.watch(recentInvoicesProvider);
-    final lowStockProducts = ref.watch(lowStockProductsProvider);
     final weeklySales = ref.watch(weeklySalesProvider);
     final syncState = ref.watch(syncProvider);
     final themeMode = ref.watch(themeModeProvider);
@@ -123,26 +111,26 @@ class DashboardScreen extends ConsumerWidget {
                       onTap: () => context.go('/products'),
                     ),
                     StatCard(
-                      title: AppStrings.lowStockAlert,
-                      value: lowStockCount.when(
-                        data: (v) => '$v محصول',
+                      title: AppStrings.inventory,
+                      value: productCount.when(
+                        data: (products) => '${CurrencyFormatter.formatNumber(
+                          products.fold<int>(0, (s, p) => s + p.stockQuantity)
+                        )} عدد',
                         loading: () => '...',
                         error: (_, __) => '---',
                       ),
-                      icon: Icons.warning_amber_rounded,
+                      icon: Icons.warehouse_outlined,
                       color: AppColors.cardAlert,
-                      subtitle: lowStockCount.value != null && lowStockCount.value! > 0
-                          ? 'نیاز به تأمین' : null,
                       onTap: () => context.go('/inventory'),
                     ),
                     StatCard(
-                      title: AppStrings.debtors,
-                      value: totalDebt.when(
-                        data: (v) => CurrencyFormatter.format(v),
+                      title: AppStrings.customers,
+                      value: customerCount.when(
+                        data: (list) => '${CurrencyFormatter.formatNumber(list.length)} نفر',
                         loading: () => '...',
                         error: (_, __) => '---',
                       ),
-                      icon: Icons.account_balance_wallet_outlined,
+                      icon: Icons.people_outline,
                       color: AppColors.cardDebt,
                       onTap: () => context.go('/customers'),
                     ),
@@ -203,55 +191,6 @@ class DashboardScreen extends ConsumerWidget {
                   error: (_, __) => _ErrorWidget(
                     onRetry: () => ref.invalidate(recentInvoicesProvider),
                   ),
-                ),
-                const SizedBox(height: 24),
-
-                // محصولات کم موجود
-                _SectionHeader(title: AppStrings.lowStockProducts),
-                const SizedBox(height: 8),
-                lowStockProducts.when(
-                  data: (products) => products.isEmpty
-                      ? _EmptyState(
-                          icon: Icons.check_circle_outline,
-                          message: 'همه محصولات موجودی کافی دارند',
-                        )
-                      : Column(
-                          children: products.take(5).map((p) => ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 0, vertical: 4),
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.warningLight,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.warning_amber,
-                                  color: AppColors.warning, size: 20),
-                            ),
-                            title: Text(p.name,
-                                style: const TextStyle(
-                                    fontFamily: 'Vazirmatn', fontSize: 14)),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.errorLight,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${p.stockQuantity} عدد',
-                                style: const TextStyle(
-                                  fontFamily: 'Vazirmatn',
-                                  fontSize: 12,
-                                  color: AppColors.error,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          )).toList(),
-                        ),
-                  loading: () => const ShimmerList(itemCount: 3, itemHeight: 64),
-                  error: (_, __) => const SizedBox(),
                 ),
                 const SizedBox(height: 80),
               ],
@@ -472,25 +411,6 @@ class _PredictionSummaryCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (pred.stockAlertCount > 0) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade400,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${pred.stockAlertCount} هشدار',
-                    style: const TextStyle(
-                      fontFamily: 'Vazirmatn',
-                      fontSize: 11,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
               Icon(
                 pred.trend == 'up'
                     ? Icons.trending_up

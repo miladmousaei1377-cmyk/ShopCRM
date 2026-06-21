@@ -570,6 +570,8 @@ class _InvoiceDetailBody extends ConsumerWidget {
         return Icons.credit_card_outlined;
       case PaymentMethod.credit:
         return Icons.account_balance_wallet_outlined;
+      case PaymentMethod.pos:
+        return Icons.credit_card;
     }
   }
 
@@ -582,6 +584,8 @@ class _InvoiceDetailBody extends ConsumerWidget {
         return AppColors.primary;
       case PaymentMethod.credit:
         return AppColors.warning;
+      case PaymentMethod.pos:
+        return AppColors.posColor;
     }
   }
 }

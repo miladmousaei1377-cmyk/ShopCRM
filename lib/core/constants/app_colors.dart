@@ -57,4 +57,5 @@ class AppColors {
   static const Color cashColor   = Color(0xFF2E7D32); // نقد = سبز
   static const Color cardColor   = Color(0xFF1565C0); // کارت = آبی
   static const Color creditColor = Color(0xFFE65100); // نسیه = نارنجی
+  static const Color posColor    = Color(0xFF00695C); // پوز = سبز فیروزه‌ای
 }

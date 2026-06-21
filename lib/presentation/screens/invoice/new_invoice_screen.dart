@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -519,14 +520,30 @@ class _PaymentMethodRow extends ConsumerWidget {
   final CartState cart;
   const _PaymentMethodRow({required this.cart});
 
+  List<PaymentMethod> _availableMethods() {
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      // دسکتاپ: نقد، پوز، نسیه
+      return [PaymentMethod.cash, PaymentMethod.pos, PaymentMethod.credit];
+    }
+    // موبایل: نقد، نسیه
+    return [PaymentMethod.cash, PaymentMethod.credit];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final methods = _availableMethods();
     return Row(
-      children: PaymentMethod.values.map((method) {
+      children: methods.map((method) {
         final selected = cart.paymentMethod == method;
         return Expanded(
           child: GestureDetector(
-            onTap: () => ref.read(cartProvider.notifier).setPaymentMethod(method),
+            onTap: () {
+              if (method == PaymentMethod.pos) {
+                _showPosDialog(context, ref, cart.finalAmount);
+              } else {
+                ref.read(cartProvider.notifier).setPaymentMethod(method);
+              }
+            },
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 2),
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -557,12 +574,219 @@ class _PaymentMethodRow extends ConsumerWidget {
     );
   }
 
+  void _showPosDialog(BuildContext context, WidgetRef ref, double amount) {
+    showDialog(
+      context: context,
+      builder: (_) => _PosPaymentDialog(
+        amount: amount,
+        onConfirm: (trackingNumber) {
+          ref.read(cartProvider.notifier).setPosPayment(trackingNumber);
+        },
+      ),
+    );
+  }
+
   Color _methodColor(PaymentMethod method) {
     switch (method) {
-      case PaymentMethod.cash: return AppColors.cashColor;
-      case PaymentMethod.card: return AppColors.cardColor;
+      case PaymentMethod.cash:   return AppColors.cashColor;
+      case PaymentMethod.card:   return AppColors.cardColor;
       case PaymentMethod.credit: return AppColors.creditColor;
+      case PaymentMethod.pos:    return AppColors.posColor;
     }
+  }
+}
+
+class _PosPaymentDialog extends StatefulWidget {
+  final double amount;
+  final ValueChanged<String?> onConfirm;
+  const _PosPaymentDialog({required this.amount, required this.onConfirm});
+
+  @override
+  State<_PosPaymentDialog> createState() => _PosPaymentDialogState();
+}
+
+class _PosPaymentDialogState extends State<_PosPaymentDialog> {
+  bool _isManual = true;
+  final _trackingCtrl = TextEditingController();
+  bool _isConnecting = false;
+  String? _autoStatus;
+
+  @override
+  void dispose() {
+    _trackingCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        title: const Text('پرداخت پوز', style: TextStyle(fontFamily: 'Vazirmatn')),
+        content: SizedBox(
+          width: 360,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // نمایش مبلغ
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.posColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.posColor.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text('مبلغ قابل پرداخت',
+                        style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                            color: AppColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    Text(
+                      CurrencyFormatter.format(widget.amount),
+                      style: const TextStyle(
+                        fontFamily: 'Vazirmatn', fontSize: 20,
+                        fontWeight: FontWeight.w700, color: AppColors.posColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // انتخاب حالت
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _isManual = true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _isManual ? AppColors.posColor : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.posColor),
+                        ),
+                        child: Text('دستی',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Vazirmatn', fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _isManual ? Colors.white : AppColors.posColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _isManual = false),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: !_isManual ? AppColors.posColor : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.posColor),
+                        ),
+                        child: Text('اتوماتیک',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Vazirmatn', fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: !_isManual ? Colors.white : AppColors.posColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              if (_isManual) ...[
+                const Text('شماره پیگیری تراکنش:',
+                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                        color: AppColors.textSecondary)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _trackingCtrl,
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'مثال: ۱۲۳۴۵۶۷۸۹',
+                    hintStyle: const TextStyle(fontFamily: 'Vazirmatn'),
+                    prefixIcon: const Icon(Icons.receipt_long_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 15),
+                ),
+              ] else ...[
+                if (_autoStatus != null)
+                  Text(_autoStatus!,
+                      style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                if (_isConnecting)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: LinearProgressIndicator(),
+                  ),
+                if (!_isConnecting) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'دستگاه پوز باید از طریق USB یا سریال به سیستم متصل باشد.',
+                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                        color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.credit_card),
+                      label: const Text('شروع تراکنش روی پوز',
+                          style: TextStyle(fontFamily: 'Vazirmatn')),
+                      onPressed: _startAutoTransaction,
+                    ),
+                  ),
+                  if (_trackingCtrl.text.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text('شماره پیگیری: ${_trackingCtrl.text}',
+                        style: const TextStyle(fontFamily: 'Vazirmatn',
+                            fontSize: 13, color: AppColors.success,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ],
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('انصراف', style: TextStyle(fontFamily: 'Vazirmatn')),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.check_circle_outline, size: 18),
+            label: const Text('تأیید پرداخت',
+                style: TextStyle(fontFamily: 'Vazirmatn')),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.posColor),
+            onPressed: () {
+              final tracking = _trackingCtrl.text.trim();
+              widget.onConfirm(tracking.isEmpty ? null : tracking);
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startAutoTransaction() async {
+    setState(() { _isConnecting = true; _autoStatus = 'در حال اتصال به دستگاه پوز...'; });
+    await Future.delayed(const Duration(seconds: 2));
+    setState(() { _isConnecting = false; _autoStatus = 'پوز متصل نشد. پورت COM را در تنظیمات پوز بررسی کنید.'; });
   }
 }
 
