@@ -292,85 +292,127 @@ class _CustomerDetailBody extends ConsumerWidget {
     );
   }
 
-  /// کارت خلاصه مالی: بدهی کل و سقف اعتبار
+  /// کارت خلاصه مالی: بدهی کل، سقف اعتبار، دکمه پرداخت
   Widget _buildFinancialCard(BuildContext context, bool isOverCredit, double computedDebt) {
     final hasDebt = computedDebt > 0;
-    return Row(
+    return Column(
       children: [
-        // کارت بدهی کل
-        Expanded(
-          child: Card(
-            elevation: 0,
-            color: hasDebt ? AppColors.errorLight : AppColors.successLight,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppStrings.totalDebt,
-                    style: TextStyle(
-                      fontFamily: 'Vazirmatn',
-                      fontSize: 12,
-                      color: hasDebt ? AppColors.error : AppColors.success,
-                    ),
+        Row(
+          children: [
+            // کارت بدهی کل
+            Expanded(
+              child: Card(
+                elevation: 0,
+                color: hasDebt ? AppColors.errorLight : AppColors.successLight,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppStrings.totalDebt,
+                        style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 12,
+                          color: hasDebt ? AppColors.error : AppColors.success,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        CurrencyFormatter.format(computedDebt),
+                        style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: hasDebt ? AppColors.error : AppColors.success,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    CurrencyFormatter.format(computedDebt),
-                    style: TextStyle(
-                      fontFamily: 'Vazirmatn',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: hasDebt ? AppColors.error : AppColors.success,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // کارت سقف اعتبار
-        Expanded(
-          child: Card(
-            elevation: 0,
-            color: AppColors.infoLight,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    AppStrings.creditLimit,
-                    style: TextStyle(
-                      fontFamily: 'Vazirmatn',
-                      fontSize: 12,
-                      color: AppColors.primary,
-                    ),
+            const SizedBox(width: 12),
+            // کارت سقف اعتبار
+            Expanded(
+              child: Card(
+                elevation: 0,
+                color: AppColors.infoLight,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        AppStrings.creditLimit,
+                        style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 12,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        customer.creditLimit > 0
+                            ? CurrencyFormatter.format(customer.creditLimit)
+                            : 'بدون سقف',
+                        style: const TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    customer.creditLimit > 0
-                        ? CurrencyFormatter.format(customer.creditLimit)
-                        : 'بدون سقف',
-                    style: const TextStyle(
-                      fontFamily: 'Vazirmatn',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
+        // ─── دکمه پرداخت بدهی (فقط در صورت وجود بدهی) ─────────────
+        if (hasDebt) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.payments_outlined, size: 20),
+              label: const Text(
+                'پرداخت بدهی',
+                style: TextStyle(
+                  fontFamily: 'Vazirmatn',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => _showDebtPaymentDialog(
+                  context, computedDebt),
+            ),
+          ),
+        ],
       ],
+    );
+  }
+
+  void _showDebtPaymentDialog(BuildContext context, double debtAmount) {
+    showDialog(
+      context: context,
+      builder: (_) => _DebtPaymentDialog(
+        customer: customer,
+        debtAmount: debtAmount,
+        onPaid: onCustomerUpdated,
+      ),
     );
   }
 
@@ -575,5 +617,178 @@ class _InvoiceHistoryTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ─── دیالوگ پرداخت بدهی مشتری ────────────────────────────────────────────────
+
+class _DebtPaymentDialog extends ConsumerStatefulWidget {
+  final Customer customer;
+  final double debtAmount;
+  final VoidCallback onPaid;
+
+  const _DebtPaymentDialog({
+    required this.customer,
+    required this.debtAmount,
+    required this.onPaid,
+  });
+
+  @override
+  ConsumerState<_DebtPaymentDialog> createState() => _DebtPaymentDialogState();
+}
+
+class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
+  late final TextEditingController _amountCtrl;
+  PaymentMethod _method = PaymentMethod.cash;
+  bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountCtrl = TextEditingController(
+      text: widget.debtAmount.toInt().toString(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.payments_outlined, color: AppColors.error, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'پرداخت بدهی — ${widget.customer.name}',
+                style: const TextStyle(
+                  fontFamily: 'Vazirmatn',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.errorLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('بدهی کل:',
+                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                          color: AppColors.error)),
+                  Text(
+                    CurrencyFormatter.format(widget.debtAmount),
+                    style: const TextStyle(
+                      fontFamily: 'Vazirmatn', fontSize: 15,
+                      fontWeight: FontWeight.w700, color: AppColors.error,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('مبلغ پرداختی (تومان):',
+                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                    color: AppColors.textSecondary)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _amountCtrl,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                suffixText: 'تومان',
+                suffixStyle: const TextStyle(fontFamily: 'Vazirmatn'),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 15),
+            ),
+            const SizedBox(height: 16),
+            const Text('روش پرداخت:',
+                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                    color: AppColors.textSecondary)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [PaymentMethod.cash, PaymentMethod.pos].map((m) =>
+                ChoiceChip(
+                  label: Text(m.label,
+                      style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                  selected: _method == m,
+                  selectedColor: AppColors.success.withOpacity(0.18),
+                  onSelected: (_) => setState(() => _method = m),
+                ),
+              ).toList(),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: _isProcessing ? null : () => Navigator.pop(context),
+            child: const Text('انصراف',
+                style: TextStyle(fontFamily: 'Vazirmatn')),
+          ),
+          ElevatedButton.icon(
+            icon: _isProcessing
+                ? const SizedBox(width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.check, size: 18),
+            label: const Text('تأیید پرداخت',
+                style: TextStyle(fontFamily: 'Vazirmatn')),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+            onPressed: _isProcessing ? null : _confirm,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirm() async {
+    final paid = double.tryParse(_amountCtrl.text.trim().replaceAll(',', '')) ?? 0;
+    if (paid <= 0) return;
+    setState(() => _isProcessing = true);
+    try {
+      final newDebt = (widget.debtAmount - paid).clamp(0, double.infinity);
+      await ref.read(customerRepositoryProvider).updateDebt(
+          widget.customer.id, newDebt);
+      widget.onPaid();
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+            newDebt == 0
+                ? 'حساب ${widget.customer.name} کاملاً تسویه شد'
+                : 'پرداخت ${CurrencyFormatter.format(paid)} ثبت شد',
+            style: const TextStyle(fontFamily: 'Vazirmatn'),
+          ),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('خطا: $e', style: const TextStyle(fontFamily: 'Vazirmatn')),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
   }
 }

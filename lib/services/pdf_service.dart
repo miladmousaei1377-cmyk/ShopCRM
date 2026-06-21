@@ -120,8 +120,7 @@ class PdfService {
       {pw.TextAlign align = pw.TextAlign.right}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      child: pw.Text(text, style: style, textAlign: align,
-          textDirection: pw.TextDirection.rtl),
+      child: pw.Text(text, style: style, textAlign: align),
     );
   }
 
@@ -164,7 +163,7 @@ class PdfService {
   }
 
   static pw.Widget _rtlText(String text, pw.TextStyle style) {
-    return pw.Text(text, style: style, textDirection: pw.TextDirection.rtl);
+    return pw.Text(text, style: style, textAlign: pw.TextAlign.right);
   }
 
   // ─── تولید PDF گزارش فروش ──────────────────────────────────────────────────

@@ -49,7 +49,7 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
           if (event.logicalKey == LogicalKeyboardKey.escape) context.pop();
           if (event.logicalKey == LogicalKeyboardKey.keyP &&
               HardwareKeyboard.instance.isControlPressed) {
-            _submitAndPrint();
+            _submitInvoice();
           }
         }
       },
@@ -124,7 +124,7 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
                 // bottom bar
                 _BottomBar(
                   cart: cart,
-                  onSubmit: (print) => print ? _submitAndPrint() : _submitOnly(),
+                  onSubmit: _submitInvoice,
                   onDiscount: _openDiscountSheet,
                 ),
               ],
@@ -200,51 +200,55 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
     );
   }
 
-  Future<void> _submitOnly() async {
+  /// ثبت فاکتور + نمایش دیالوگ موفقیت با گزینه‌های بستن یا چاپ
+  Future<void> _submitInvoice() async {
     final id = await ref.read(cartProvider.notifier).submitInvoice();
-    if (id != null && mounted) {
-      ref.read(cartProvider.notifier).clearCart();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('فاکتور با موفقیت ثبت شد',
-            style: TextStyle(fontFamily: 'Vazirmatn')),
-        backgroundColor: AppColors.success,
-      ));
-      context.pop();
-    } else if (ref.read(cartProvider).error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ref.read(cartProvider).error!,
-            style: const TextStyle(fontFamily: 'Vazirmatn')),
-        backgroundColor: AppColors.error,
-      ));
-    }
-  }
 
-  Future<void> _submitAndPrint() async {
-    final id = await ref.read(cartProvider.notifier).submitInvoice();
-    if (id != null && mounted) {
-      // پرینت فاکتور — اگر پرینتر متصل است
-      final printerNotifier = ref.read(printerProvider.notifier);
+    if (id == null) {
+      final err = ref.read(cartProvider).error;
+      if (mounted && err != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(err, style: const TextStyle(fontFamily: 'Vazirmatn')),
+          backgroundColor: AppColors.error,
+        ));
+      }
+      return;
+    }
+
+    Invoice? invoice;
+    try {
+      invoice = await ref.read(invoiceRepositoryProvider).findById(id);
+    } catch (_) {}
+
+    ref.read(cartProvider.notifier).clearCart();
+
+    if (!mounted) return;
+
+    final shouldPrint = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _InvoiceSuccessDialog(
+        invoiceNumber: invoice?.invoiceNumber ?? 'INV-$id',
+      ),
+    );
+
+    if (shouldPrint == true && invoice != null && mounted) {
       try {
-        final invoice = await ref.read(invoiceRepositoryProvider).findById(id);
-        if (invoice != null) {
-          await printerNotifier.printInvoice(invoice);
-        }
+        await ref.read(printerProvider.notifier).printInvoice(invoice);
       } catch (_) {
-        // خطای پرینتر نباید فاکتور را لغو کند — فقط نمایش پیام
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('فاکتور ثبت شد اما پرینتر متصل نیست',
+              content: Text('پرینتر متصل نیست',
                   style: TextStyle(fontFamily: 'Vazirmatn')),
               backgroundColor: AppColors.warning,
-              duration: Duration(seconds: 3),
             ),
           );
         }
       }
-      ref.read(cartProvider.notifier).clearCart();
-      if (mounted) context.pop();
     }
+
+    if (mounted) context.pop();
   }
 
   void _showClearCartDialog() {
@@ -447,7 +451,7 @@ class _CartEmpty extends StatelessWidget {
 
 class _BottomBar extends StatelessWidget {
   final CartState cart;
-  final void Function(bool print) onSubmit;
+  final VoidCallback onSubmit;
   final VoidCallback onDiscount;
 
   const _BottomBar({
@@ -489,23 +493,15 @@ class _BottomBar extends StatelessWidget {
                     : null,
               ),
               const SizedBox(width: 8),
-              // ثبت بدون پرینت
+              // ثبت فاکتور
               Expanded(
-                child: OutlinedButton(
-                  onPressed: cart.isEmpty ? null : () => onSubmit(false),
-                  child: const Text(AppStrings.submitOnly,
-                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // ثبت و پرینت
-              Expanded(
-                flex: 2,
+                flex: 3,
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.print, size: 18),
-                  label: const Text(AppStrings.submitAndPrint,
-                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
-                  onPressed: cart.isEmpty ? null : () => onSubmit(true),
+                  icon: const Icon(Icons.check_circle_outline, size: 18),
+                  label: const Text('ثبت فاکتور',
+                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 14,
+                          fontWeight: FontWeight.w600)),
+                  onPressed: cart.isEmpty ? null : onSubmit,
                 ),
               ),
             ],
@@ -787,6 +783,85 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
     setState(() { _isConnecting = true; _autoStatus = 'در حال اتصال به دستگاه پوز...'; });
     await Future.delayed(const Duration(seconds: 2));
     setState(() { _isConnecting = false; _autoStatus = 'پوز متصل نشد. پورت COM را در تنظیمات پوز بررسی کنید.'; });
+  }
+}
+
+/// دیالوگ موفقیت ثبت فاکتور — نمایش شماره فاکتور + گزینه‌های بستن/چاپ
+class _InvoiceSuccessDialog extends StatelessWidget {
+  final String invoiceNumber;
+  const _InvoiceSuccessDialog({required this.invoiceNumber});
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: AppColors.success, size: 64),
+            const SizedBox(height: 12),
+            const Text(
+              'فاکتور با موفقیت ثبت شد',
+              style: TextStyle(
+                fontFamily: 'Vazirmatn',
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.infoLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'شماره فاکتور',
+                    style: TextStyle(
+                      fontFamily: 'Vazirmatn',
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    invoiceNumber,
+                    style: const TextStyle(
+                      fontFamily: 'Vazirmatn',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('بستن',
+                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 14)),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.print_outlined, size: 18),
+            label: const Text('چاپ فاکتور',
+                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 14)),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
   }
 }
 
