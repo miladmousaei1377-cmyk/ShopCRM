@@ -1,3 +1,6 @@
+# Claude Code internal directory
+.claude/
+
 # فایل‌های تولید‌شده Flutter
 .dart_tool/
 .flutter-plugins
