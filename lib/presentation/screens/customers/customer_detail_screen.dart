@@ -92,11 +92,8 @@ class _CustomerDetailBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // محاسبه بدهی کل از فاکتورهای نسیه (دقیق‌تر از فیلد ذخیره‌شده)
-    final computedDebt = invoicesAsync.value
-            ?.where((inv) => inv.paymentMethod == PaymentMethod.credit)
-            .fold<double>(0, (sum, inv) => sum + inv.finalAmount) ??
-        customer.totalDebt;
+    // بدهی از فیلد DB (بعد از پرداخت، updateDebt این فیلد را به‌روز می‌کند)
+    final computedDebt = customer.totalDebt;
 
     // محاسبه میزان استفاده از اعتبار
     final creditUsagePercent = customer.creditLimit > 0
@@ -646,7 +643,7 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
   void initState() {
     super.initState();
     _amountCtrl = TextEditingController(
-      text: widget.debtAmount.toInt().toString(),
+      text: CurrencyFormatter.formatNumber(widget.debtAmount.toInt()),
     );
   }
 
@@ -718,6 +715,17 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
               style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 15),
+              onChanged: (val) {
+                final clean = CurrencyFormatter.toEnglishNumber(val).replaceAll(',', '');
+                final num = int.tryParse(clean) ?? 0;
+                final formatted = num > 0 ? CurrencyFormatter.formatNumber(num) : '';
+                if (formatted != val) {
+                  _amountCtrl.value = TextEditingValue(
+                    text: formatted,
+                    selection: TextSelection.collapsed(offset: formatted.length),
+                  );
+                }
+              },
             ),
             const SizedBox(height: 16),
             const Text('روش پرداخت:',
@@ -760,7 +768,7 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
   }
 
   Future<void> _confirm() async {
-    final paid = double.tryParse(_amountCtrl.text.trim().replaceAll(',', '')) ?? 0;
+    final paid = CurrencyFormatter.parse(_amountCtrl.text) ?? 0.0;
     if (paid <= 0) return;
     setState(() => _isProcessing = true);
     try {

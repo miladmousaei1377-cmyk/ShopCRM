@@ -79,6 +79,7 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
                 ),
             ],
           ),
+          resizeToAvoidBottomInset: false,
           body: LoadingOverlay(
             isLoading: cart.isSubmitting,
             message: 'در حال ثبت فاکتور...',

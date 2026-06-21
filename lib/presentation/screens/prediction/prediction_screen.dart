@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/models/prediction.dart';
@@ -592,34 +593,55 @@ class _StockAlertsCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.warning_amber_outlined, color: AppColors.warning, size: 20),
-                SizedBox(width: 8),
-                Text('هشدار موجودی',
-                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 15,
-                        fontWeight: FontWeight.w700)),
-              ],
+            // ─── هدر با تعداد هشدارها ─────────────────────────────────
+            alertsAsync.when(
+              loading: () => const _StockAlertHeader(critical: 0, warning: 0),
+              error: (_, __) => const _StockAlertHeader(critical: 0, warning: 0),
+              data: (alerts) => _StockAlertHeader(
+                critical: alerts.where((a) => a.urgency == 'critical').length,
+                warning: alerts.where((a) => a.urgency == 'warning').length,
+              ),
             ),
             const SizedBox(height: 12),
+
+            // ─── محتوای هشدارها ────────────────────────────────────────
             alertsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              )),
               error: (_, __) => const Text('خطا در بارگذاری',
                   style: TextStyle(fontFamily: 'Vazirmatn')),
               data: (alerts) {
                 if (alerts.isEmpty) {
-                  return const Row(
-                    children: [
-                      Icon(Icons.check_circle_outline, color: AppColors.success, size: 20),
-                      SizedBox(width: 8),
-                      Text('همه محصولات موجودی کافی دارند',
-                          style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
-                              color: AppColors.success)),
-                    ],
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_outline, color: AppColors.success, size: 22),
+                        SizedBox(width: 8),
+                        Text('همه محصولات موجودی کافی دارند',
+                            style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                                color: AppColors.success, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   );
                 }
                 return Column(
-                  children: alerts.map((a) => _StockAlertTile(alert: a)).toList(),
+                  children: [
+                    ...alerts.map((a) => _StockAlertTile(alert: a)),
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.warehouse_outlined, size: 16),
+                        label: const Text('مدیریت انبار',
+                            style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                        onPressed: () => context.go('/inventory'),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -630,68 +652,213 @@ class _StockAlertsCard extends ConsumerWidget {
   }
 }
 
+class _StockAlertHeader extends StatelessWidget {
+  final int critical;
+  final int warning;
+  const _StockAlertHeader({required this.critical, required this.warning});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(Icons.warning_amber_outlined, color: AppColors.warning, size: 20),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text('هشدار موجودی',
+              style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 15,
+                  fontWeight: FontWeight.w700)),
+        ),
+        if (critical > 0)
+          Container(
+            margin: const EdgeInsets.only(right: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.errorLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text('$critical بحرانی',
+                style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
+                    color: AppColors.error, fontWeight: FontWeight.w600)),
+          ),
+        if (warning > 0)
+          Container(
+            margin: const EdgeInsets.only(right: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.warningLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text('$warning هشدار',
+                style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
+                    color: AppColors.warning, fontWeight: FontWeight.w600)),
+          ),
+      ],
+    );
+  }
+}
+
 class _StockAlertTile extends StatelessWidget {
   final StockAlert alert;
   const _StockAlertTile({required this.alert});
 
   @override
   Widget build(BuildContext context) {
-    final color = alert.urgency == 'critical'
+    final isCritical = alert.urgency == 'critical';
+    final isWarning = alert.urgency == 'warning';
+    final color = isCritical
         ? AppColors.error
-        : alert.urgency == 'warning'
+        : isWarning
             ? AppColors.warning
             : Colors.amber;
+    final bgColor = isCritical
+        ? AppColors.errorLight
+        : isWarning
+            ? AppColors.warningLight
+            : const Color(0xFFFFFDE7);
+    final icon = isCritical
+        ? Icons.error_outline
+        : isWarning
+            ? Icons.warning_amber_outlined
+            : Icons.info_outline;
+    final label = isCritical ? 'بحرانی' : isWarning ? 'هشدار' : 'اطلاع';
 
-    final daysProgress =
-        (alert.daysRemaining / 7).clamp(0.0, 1.0);
+    // تعداد پیشنهادی سفارش: ۳۰ روز میانگین فروش
+    final recommendedOrder = (alert.dailyAvgSales * 30).ceil();
+    final daysProgress = (alert.daysRemaining / 7.0).clamp(0.0, 1.0);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ردیف اول: نام محصول + برچسب وضعیت
           Row(
             children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(alert.productName,
-                    style: const TextStyle(
-                        fontFamily: 'Vazirmatn', fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                        fontWeight: FontWeight.w700, color: color)),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  alert.urgency == 'critical'
-                      ? 'بحرانی'
-                      : alert.urgency == 'warning'
-                          ? 'هشدار'
-                          : 'اطلاع',
-                  style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 10,
-                      fontWeight: FontWeight.w600, color: color),
-                ),
+                child: Text(label,
+                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 10,
+                        fontWeight: FontWeight.w700, color: color)),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
+
+          // نوار پیشرفت روزهای باقی‌مانده
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: daysProgress,
-              backgroundColor: color.withOpacity(0.1),
+              backgroundColor: color.withOpacity(0.15),
               color: color,
-              minHeight: 6,
+              minHeight: 5,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${alert.daysRemaining.toStringAsFixed(1)} روز دیگر تمام می‌شود — موجودی: ${alert.currentStock.toStringAsFixed(0)} عدد',
-            style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 11, color: color),
+          const SizedBox(height: 8),
+
+          // ردیف دوم: آمار
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _StatRow(
+                      icon: Icons.inventory_2_outlined,
+                      label: 'موجودی فعلی',
+                      value: '${alert.currentStock.toStringAsFixed(0)} عدد',
+                      color: color,
+                    ),
+                    const SizedBox(height: 4),
+                    _StatRow(
+                      icon: Icons.trending_down,
+                      label: 'مصرف روزانه',
+                      value: '${alert.dailyAvgSales.toStringAsFixed(1)} عدد/روز',
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${alert.daysRemaining.toStringAsFixed(0)} روز',
+                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 18,
+                        fontWeight: FontWeight.w800, color: color),
+                  ),
+                  Text('تا اتمام موجودی',
+                      style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 10,
+                          color: AppColors.textSecondary)),
+                ],
+              ),
+            ],
           ),
+
+          if (recommendedOrder > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.infoLight,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.shopping_cart_outlined,
+                      color: AppColors.primary, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    'سفارش پیشنهادی (۳۰ روز): $recommendedOrder عدد',
+                    style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
+                        color: AppColors.primary, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  const _StatRow({required this.icon, required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text('$label: ', style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
+            color: AppColors.textSecondary)),
+        Text(value, style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
+            fontWeight: FontWeight.w600, color: color)),
+      ],
     );
   }
 }
@@ -724,28 +891,35 @@ class _TopProductsCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             topsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              )),
               error: (_, __) => const Text('خطا در بارگذاری',
                   style: TextStyle(fontFamily: 'Vazirmatn')),
               data: (tops) {
                 if (tops.isEmpty) {
                   return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      'برای پیش‌بینی به حداقل ۷ روز داده فروش نیاز است',
-                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
-                          color: AppColors.textSecondary),
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: AppColors.textHint, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'برای پیش‌بینی به حداقل ۷ روز داده فروش نیاز است',
+                            style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                                color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 }
-                return SizedBox(
-                  height: 130,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: tops.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
-                    itemBuilder: (_, i) => _TopProductCard(product: tops[i]),
-                  ),
+                return Column(
+                  children: tops.asMap().entries.map((e) =>
+                    _TopProductTile(rank: e.key + 1, product: e.value),
+                  ).toList(),
                 );
               },
             ),
@@ -756,55 +930,90 @@ class _TopProductsCard extends ConsumerWidget {
   }
 }
 
-class _TopProductCard extends StatelessWidget {
+class _TopProductTile extends StatelessWidget {
+  final int rank;
   final TopProduct product;
-  const _TopProductCard({required this.product});
+  const _TopProductTile({required this.rank, required this.product});
 
   @override
   Widget build(BuildContext context) {
     final isUp = product.trendPercent >= 0;
     final trendColor = isUp ? AppColors.success : AppColors.error;
     final trendIcon = isUp ? Icons.trending_up : Icons.trending_down;
+    final rankColor = rank == 1
+        ? const Color(0xFFFFB300)  // طلایی
+        : rank == 2
+            ? const Color(0xFF78909C)  // نقره‌ای
+            : rank == 3
+                ? const Color(0xFF8D6E63)  // برنزی
+                : AppColors.textHint;
 
     return Container(
-      width: 110,
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: rank <= 3 ? rankColor.withOpacity(0.3) : AppColors.border,
+        ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
         children: [
+          // رتبه
           Container(
-            width: 40,
-            height: 40,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
-              color: AppColors.infoLight,
-              borderRadius: BorderRadius.circular(10),
+              color: rankColor.withOpacity(0.15),
+              shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 20),
+            child: Center(
+              child: Text('$rank',
+                  style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                      fontWeight: FontWeight.w800, color: rankColor)),
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            product.productName,
-            style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
-                fontWeight: FontWeight.w600),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+          const SizedBox(width: 10),
+
+          // نام محصول
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(product.productName,
+                    style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                        fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Text(product.trendLabel,
+                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
+                        color: trendColor, fontWeight: FontWeight.w500)),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+
+          // پیش‌بینی فروش + روند
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Icon(trendIcon, color: trendColor, size: 13),
-              const SizedBox(width: 2),
               Text(
-                product.trendLabel.split(' ').first,
-                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 10,
-                    color: trendColor, fontWeight: FontWeight.w600),
+                CurrencyFormatter.format(product.predictedSales),
+                style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                    fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(trendIcon, size: 13, color: trendColor),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${product.trendPercent.abs().toStringAsFixed(0)}٪',
+                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
+                        color: trendColor, fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
             ],
           ),

@@ -135,7 +135,7 @@ class AiRefreshNotifier extends StateNotifier<AsyncValue<AiAnalysis?>> {
   final PredictionService _svc;
   final Ref _ref;
 
-  AiRefreshNotifier(this._svc, this._ref) : super(const AsyncValue.loading());
+  AiRefreshNotifier(this._svc, this._ref) : super(const AsyncValue.data(null));
 
   Future<void> refresh({bool force = false}) async {
     state = const AsyncValue.loading();
