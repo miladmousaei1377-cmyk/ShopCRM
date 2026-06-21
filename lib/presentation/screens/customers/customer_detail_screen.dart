@@ -14,17 +14,14 @@ import '../../providers/cart_provider.dart';
 import 'customers_screen.dart' show CustomerFormDialog;
 
 /// Provider برای دریافت اطلاعات یک مشتری خاص
-final customerByIdProvider =
-    FutureProvider.family<Customer?, int>((ref, id) {
+final customerByIdProvider = FutureProvider.family<Customer?, int>((ref, id) {
   return ref.watch(customerRepositoryProvider).findById(id);
 });
 
 /// Provider برای دریافت فاکتورهای یک مشتری
 final customerInvoicesProvider =
     FutureProvider.family<List<Invoice>, int>((ref, customerId) {
-  return ref
-      .watch(invoiceRepositoryProvider)
-      .getCustomerInvoices(customerId);
+  return ref.watch(invoiceRepositoryProvider).getCustomerInvoices(customerId);
 });
 
 class CustomerDetailScreen extends ConsumerWidget {
@@ -151,8 +148,8 @@ class _CustomerDetailBody extends ConsumerWidget {
   }
 
   /// کارت اطلاعات اصلی مشتری: نام، تلفن، آدرس
-  Widget _buildInfoCard(BuildContext context, double creditUsagePercent,
-      bool isOverCredit) {
+  Widget _buildInfoCard(
+      BuildContext context, double creditUsagePercent, bool isOverCredit) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -264,9 +261,7 @@ class _CustomerDetailBody extends ConsumerWidget {
                       fontFamily: 'Vazirmatn',
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isOverCredit
-                          ? AppColors.error
-                          : AppColors.success,
+                      color: isOverCredit ? AppColors.error : AppColors.success,
                     ),
                   ),
                 ],
@@ -290,7 +285,8 @@ class _CustomerDetailBody extends ConsumerWidget {
   }
 
   /// کارت خلاصه مالی: بدهی کل، سقف اعتبار، دکمه پرداخت
-  Widget _buildFinancialCard(BuildContext context, bool isOverCredit, double computedDebt) {
+  Widget _buildFinancialCard(
+      BuildContext context, bool isOverCredit, double computedDebt) {
     final hasDebt = computedDebt > 0;
     return Column(
       children: [
@@ -393,8 +389,7 @@ class _CustomerDetailBody extends ConsumerWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: () => _showDebtPaymentDialog(
-                  context, computedDebt),
+              onPressed: () => _showDebtPaymentDialog(context, computedDebt),
             ),
           ),
         ],
@@ -441,9 +436,9 @@ class _CustomerDetailBody extends ConsumerWidget {
         invoicesAsync.when(
           loading: () => const Center(
               child: Padding(
-                padding: EdgeInsets.all(24),
-                child: CircularProgressIndicator(),
-              )),
+            padding: EdgeInsets.all(24),
+            child: CircularProgressIndicator(),
+          )),
           error: (e, _) => Center(
             child: Text(
               'خطا در بارگذاری فاکتورها: $e',
@@ -481,8 +476,8 @@ class _CustomerDetailBody extends ConsumerWidget {
                   final invoice = invoices[index];
                   return _InvoiceHistoryTile(
                     invoice: invoice,
-                    onTap: () =>
-                        context.go('/invoices/${invoice.id}'),
+                    isDebtSettled: customer.totalDebt <= 0,
+                    onTap: () => context.go('/invoices/${invoice.id}'),
                   );
                 },
               ),
@@ -499,8 +494,13 @@ class _CustomerDetailBody extends ConsumerWidget {
 class _InvoiceHistoryTile extends StatelessWidget {
   final Invoice invoice;
   final VoidCallback onTap;
+  final bool isDebtSettled;
 
-  const _InvoiceHistoryTile({required this.invoice, required this.onTap});
+  const _InvoiceHistoryTile({
+    required this.invoice,
+    required this.onTap,
+    this.isDebtSettled = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -589,18 +589,27 @@ class _InvoiceHistoryTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: paymentColor.withOpacity(0.1),
+                    color: isDebtSettled &&
+                            invoice.paymentMethod == PaymentMethod.credit
+                        ? AppColors.successLight
+                        : paymentColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    invoice.paymentMethod.label,
+                    isDebtSettled &&
+                            invoice.paymentMethod == PaymentMethod.credit
+                        ? 'تسویه شده'
+                        : invoice.paymentMethod.label,
                     style: TextStyle(
                       fontFamily: 'Vazirmatn',
                       fontSize: 10,
-                      color: paymentColor,
+                      color: isDebtSettled &&
+                              invoice.paymentMethod == PaymentMethod.credit
+                          ? AppColors.success
+                          : paymentColor,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -608,8 +617,7 @@ class _InvoiceHistoryTile extends StatelessWidget {
               ],
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_left,
-                color: AppColors.textHint, size: 18),
+            const Icon(Icons.chevron_left, color: AppColors.textHint, size: 18),
           ],
         ),
       ),
@@ -660,7 +668,8 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
       child: AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.payments_outlined, color: AppColors.error, size: 22),
+            const Icon(Icons.payments_outlined,
+                color: AppColors.error, size: 22),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -688,13 +697,17 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('بدهی کل:',
-                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                      style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 13,
                           color: AppColors.error)),
                   Text(
                     CurrencyFormatter.format(widget.debtAmount),
                     style: const TextStyle(
-                      fontFamily: 'Vazirmatn', fontSize: 15,
-                      fontWeight: FontWeight.w700, color: AppColors.error,
+                      fontFamily: 'Vazirmatn',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.error,
                     ),
                   ),
                 ],
@@ -702,7 +715,9 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
             ),
             const SizedBox(height: 16),
             const Text('مبلغ پرداختی (تومان):',
-                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                style: TextStyle(
+                    fontFamily: 'Vazirmatn',
+                    fontSize: 13,
                     color: AppColors.textSecondary)),
             const SizedBox(height: 6),
             TextField(
@@ -711,51 +726,64 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
               decoration: InputDecoration(
                 suffixText: 'تومان',
                 suffixStyle: const TextStyle(fontFamily: 'Vazirmatn'),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
               style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 15),
               onChanged: (val) {
-                final clean = CurrencyFormatter.toEnglishNumber(val).replaceAll(',', '');
+                final clean =
+                    CurrencyFormatter.toEnglishNumber(val).replaceAll(',', '');
                 final num = int.tryParse(clean) ?? 0;
-                final formatted = num > 0 ? CurrencyFormatter.formatNumber(num) : '';
+                final formatted =
+                    num > 0 ? CurrencyFormatter.formatNumber(num) : '';
                 if (formatted != val) {
                   _amountCtrl.value = TextEditingValue(
                     text: formatted,
-                    selection: TextSelection.collapsed(offset: formatted.length),
+                    selection:
+                        TextSelection.collapsed(offset: formatted.length),
                   );
                 }
               },
             ),
             const SizedBox(height: 16),
             const Text('روش پرداخت:',
-                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                style: TextStyle(
+                    fontFamily: 'Vazirmatn',
+                    fontSize: 13,
                     color: AppColors.textSecondary)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: [PaymentMethod.cash, PaymentMethod.pos].map((m) =>
-                ChoiceChip(
-                  label: Text(m.label,
-                      style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
-                  selected: _method == m,
-                  selectedColor: AppColors.success.withOpacity(0.18),
-                  onSelected: (_) => setState(() => _method = m),
-                ),
-              ).toList(),
+              children: [PaymentMethod.cash, PaymentMethod.pos]
+                  .map(
+                    (m) => ChoiceChip(
+                      label: Text(m.label,
+                          style: const TextStyle(
+                              fontFamily: 'Vazirmatn', fontSize: 13)),
+                      selected: _method == m,
+                      selectedColor: AppColors.success.withOpacity(0.18),
+                      onSelected: (_) => setState(() => _method = m),
+                    ),
+                  )
+                  .toList(),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: _isProcessing ? null : () => Navigator.pop(context),
-            child: const Text('انصراف',
-                style: TextStyle(fontFamily: 'Vazirmatn')),
+            child:
+                const Text('انصراف', style: TextStyle(fontFamily: 'Vazirmatn')),
           ),
           ElevatedButton.icon(
             icon: _isProcessing
-                ? const SizedBox(width: 16, height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check, size: 18),
             label: const Text('تأیید پرداخت',
                 style: TextStyle(fontFamily: 'Vazirmatn')),
@@ -773,8 +801,9 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
     setState(() => _isProcessing = true);
     try {
       final newDebt = (widget.debtAmount - paid).clamp(0.0, double.infinity);
-      await ref.read(customerRepositoryProvider).updateDebt(
-          widget.customer.id, newDebt);
+      await ref
+          .read(customerRepositoryProvider)
+          .updateDebt(widget.customer.id, newDebt);
       widget.onPaid();
       if (mounted) {
         Navigator.pop(context);
@@ -791,7 +820,8 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('خطا: $e', style: const TextStyle(fontFamily: 'Vazirmatn')),
+          content:
+              Text('خطا: $e', style: const TextStyle(fontFamily: 'Vazirmatn')),
           backgroundColor: AppColors.error,
         ));
       }

@@ -71,10 +71,13 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
             actions: [
               if (!cart.isEmpty)
                 TextButton.icon(
-                  icon: const Icon(Icons.delete_sweep, color: Colors.white, size: 20),
+                  icon: const Icon(Icons.delete_sweep,
+                      color: Colors.white, size: 20),
                   label: const Text('پاک کردن',
                       style: TextStyle(
-                          fontFamily: 'Vazirmatn', color: Colors.white, fontSize: 13)),
+                          fontFamily: 'Vazirmatn',
+                          color: Colors.white,
+                          fontSize: 13)),
                   onPressed: _showClearCartDialog,
                 ),
             ],
@@ -91,35 +94,63 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
                 // ردیف اکشن‌ها
                 _ActionRow(
                   onScan: _openScanner,
-                  onSearch: () => setState(() => _showSearch = !_showSearch),
+                  onSearch: () => setState(() {
+                    _showSearch = !_showSearch;
+                    if (!_showSearch) _searchController.clear();
+                  }),
                   onCustomer: _openCustomerPicker,
                   customerName: cart.customer?.name,
                 ),
 
-                // فیلد جستجو (toggle)
+                // فیلد جستجو (toggle) — بدون dropdown
                 if (_showSearch)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    child: _ProductSearchField(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                    child: TextField(
                       controller: _searchController,
-                      onProductSelected: (p) {
-                        ref.read(cartProvider.notifier).addProduct(p);
-                        _searchController.clear();
-                        setState(() => _showSearch = false);
-                        _showAddedSnack(p.name);
-                      },
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: 'نام یا بارکد محصول...',
+                        hintStyle: const TextStyle(fontFamily: 'Vazirmatn'),
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _showSearch = false);
+                          },
+                        ),
+                        filled: true,
+                        fillColor: AppColors.background,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
 
-                // لیست سبد
+                // لیست سبد یا جستجو
                 Expanded(
-                  child: cart.isEmpty
-                      ? _CartEmpty(onScan: _openScanner)
-                      : ListView.builder(
-                          itemCount: cart.items.length,
-                          padding: const EdgeInsets.only(bottom: 8),
-                          itemBuilder: (_, i) => CartItemTile(item: cart.items[i]),
-                        ),
+                  child: _showSearch
+                      ? _ProductSearchInline(
+                          query: _searchController.text,
+                          onProductSelected: (p) {
+                            ref.read(cartProvider.notifier).addProduct(p);
+                            _searchController.clear();
+                            setState(() {});
+                            _showAddedSnack(p.name);
+                          },
+                        )
+                      : cart.isEmpty
+                          ? _CartEmpty(onScan: _openScanner)
+                          : ListView.builder(
+                              itemCount: cart.items.length,
+                              padding: const EdgeInsets.only(bottom: 8),
+                              itemBuilder: (_, i) =>
+                                  CartItemTile(item: cart.items[i]),
+                            ),
                 ),
 
                 // bottom bar
@@ -145,7 +176,9 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
         height: MediaQuery.of(context).size.height * 0.75,
         child: BarcodeScannerWidget(
           onDetected: (barcode) async {
-            final product = await ref.read(productRepositoryProvider).findByBarcode(barcode);
+            final product = await ref
+                .read(productRepositoryProvider)
+                .findByBarcode(barcode);
             if (product != null) {
               ref.read(cartProvider.notifier).addProduct(product);
               _showAddedSnack(product.name);
@@ -158,7 +191,8 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
                   action: SnackBarAction(
                     label: 'افزودن محصول',
                     textColor: Colors.white,
-                    onPressed: () => context.go('/products/new?barcode=$barcode'),
+                    onPressed: () =>
+                        context.go('/products/new?barcode=$barcode'),
                   ),
                 ));
               }
@@ -194,7 +228,9 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
         currentDiscount: ref.read(cartProvider).discount,
         isPercent: ref.read(cartProvider).isDiscountPercent,
         onApply: (value, isPercent) {
-          ref.read(cartProvider.notifier).setDiscount(value, isPercent: isPercent);
+          ref
+              .read(cartProvider.notifier)
+              .setDiscount(value, isPercent: isPercent);
           Navigator.pop(context);
         },
       ),
@@ -325,7 +361,8 @@ class _ActionRow extends StatelessWidget {
             child: GestureDetector(
               onTap: onCustomer,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: customerName != null
@@ -382,7 +419,8 @@ class _ActionBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _ActionBtn({required this.icon, required this.label, required this.onTap});
+  const _ActionBtn(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -500,7 +538,9 @@ class _BottomBar extends StatelessWidget {
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.check_circle_outline, size: 18),
                   label: const Text('ثبت فاکتور',
-                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 14,
+                      style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 14,
                           fontWeight: FontWeight.w600)),
                   onPressed: cart.isEmpty ? null : onSubmit,
                 ),
@@ -561,7 +601,8 @@ class _PaymentMethodRow extends ConsumerWidget {
                   fontFamily: 'Vazirmatn',
                   fontSize: 13,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                  color: selected ? _methodColor(method) : AppColors.textSecondary,
+                  color:
+                      selected ? _methodColor(method) : AppColors.textSecondary,
                 ),
               ),
             ),
@@ -585,10 +626,14 @@ class _PaymentMethodRow extends ConsumerWidget {
 
   Color _methodColor(PaymentMethod method) {
     switch (method) {
-      case PaymentMethod.cash:   return AppColors.cashColor;
-      case PaymentMethod.card:   return AppColors.cardColor;
-      case PaymentMethod.credit: return AppColors.creditColor;
-      case PaymentMethod.pos:    return AppColors.posColor;
+      case PaymentMethod.cash:
+        return AppColors.cashColor;
+      case PaymentMethod.card:
+        return AppColors.cardColor;
+      case PaymentMethod.credit:
+        return AppColors.creditColor;
+      case PaymentMethod.pos:
+        return AppColors.posColor;
     }
   }
 }
@@ -619,7 +664,8 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: AlertDialog(
-        title: const Text('پرداخت پوز', style: TextStyle(fontFamily: 'Vazirmatn')),
+        title:
+            const Text('پرداخت پوز', style: TextStyle(fontFamily: 'Vazirmatn')),
         content: SizedBox(
           width: 360,
           child: Column(
@@ -629,24 +675,30 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
               // نمایش مبلغ
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                 decoration: BoxDecoration(
                   color: AppColors.posColor.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.posColor.withOpacity(0.3)),
+                  border:
+                      Border.all(color: AppColors.posColor.withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const Text('مبلغ قابل پرداخت',
-                        style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                        style: TextStyle(
+                            fontFamily: 'Vazirmatn',
+                            fontSize: 12,
                             color: AppColors.textSecondary)),
                     const SizedBox(height: 4),
                     Text(
                       CurrencyFormatter.format(widget.amount),
                       style: const TextStyle(
-                        fontFamily: 'Vazirmatn', fontSize: 20,
-                        fontWeight: FontWeight.w700, color: AppColors.posColor,
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.posColor,
                       ),
                     ),
                   ],
@@ -663,16 +715,21 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: _isManual ? AppColors.posColor : Colors.transparent,
+                          color: _isManual
+                              ? AppColors.posColor
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: AppColors.posColor),
                         ),
-                        child: Text('دستی',
+                        child: Text(
+                          'دستی',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'Vazirmatn', fontSize: 13,
+                            fontFamily: 'Vazirmatn',
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: _isManual ? Colors.white : AppColors.posColor,
+                            color:
+                                _isManual ? Colors.white : AppColors.posColor,
                           ),
                         ),
                       ),
@@ -685,16 +742,21 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: !_isManual ? AppColors.posColor : Colors.transparent,
+                          color: !_isManual
+                              ? AppColors.posColor
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: AppColors.posColor),
                         ),
-                        child: Text('اتوماتیک',
+                        child: Text(
+                          'اتوماتیک',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'Vazirmatn', fontSize: 13,
+                            fontFamily: 'Vazirmatn',
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: !_isManual ? Colors.white : AppColors.posColor,
+                            color:
+                                !_isManual ? Colors.white : AppColors.posColor,
                           ),
                         ),
                       ),
@@ -706,7 +768,9 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
 
               if (_isManual) ...[
                 const Text('شماره پیگیری تراکنش:',
-                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                    style: TextStyle(
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 13,
                         color: AppColors.textSecondary)),
                 const SizedBox(height: 6),
                 TextField(
@@ -717,14 +781,16 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
                     hintText: 'مثال: ۱۲۳۴۵۶۷۸۹',
                     hintStyle: const TextStyle(fontFamily: 'Vazirmatn'),
                     prefixIcon: const Icon(Icons.receipt_long_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 15),
                 ),
               ] else ...[
                 if (_autoStatus != null)
                   Text(_autoStatus!,
-                      style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                      style: const TextStyle(
+                          fontFamily: 'Vazirmatn', fontSize: 13)),
                 if (_isConnecting)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
@@ -734,7 +800,9 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
                   const SizedBox(height: 8),
                   const Text(
                     'دستگاه پوز باید از طریق USB یا سریال به سیستم متصل باشد.',
-                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                    style: TextStyle(
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 12,
                         color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 12),
@@ -750,8 +818,10 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
                   if (_trackingCtrl.text.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text('شماره پیگیری: ${_trackingCtrl.text}',
-                        style: const TextStyle(fontFamily: 'Vazirmatn',
-                            fontSize: 13, color: AppColors.success,
+                        style: const TextStyle(
+                            fontFamily: 'Vazirmatn',
+                            fontSize: 13,
+                            color: AppColors.success,
                             fontWeight: FontWeight.w600)),
                   ],
                 ],
@@ -762,13 +832,15 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('انصراف', style: TextStyle(fontFamily: 'Vazirmatn')),
+            child:
+                const Text('انصراف', style: TextStyle(fontFamily: 'Vazirmatn')),
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.check_circle_outline, size: 18),
             label: const Text('تأیید پرداخت',
                 style: TextStyle(fontFamily: 'Vazirmatn')),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.posColor),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.posColor),
             onPressed: () {
               final tracking = _trackingCtrl.text.trim();
               widget.onConfirm(tracking.isEmpty ? null : tracking);
@@ -781,9 +853,15 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
   }
 
   Future<void> _startAutoTransaction() async {
-    setState(() { _isConnecting = true; _autoStatus = 'در حال اتصال به دستگاه پوز...'; });
+    setState(() {
+      _isConnecting = true;
+      _autoStatus = 'در حال اتصال به دستگاه پوز...';
+    });
     await Future.delayed(const Duration(seconds: 2));
-    setState(() { _isConnecting = false; _autoStatus = 'پوز متصل نشد. پورت COM را در تنظیمات پوز بررسی کنید.'; });
+    setState(() {
+      _isConnecting = false;
+      _autoStatus = 'پوز متصل نشد. پورت COM را در تنظیمات پوز بررسی کنید.';
+    });
   }
 }
 
@@ -866,74 +944,93 @@ class _InvoiceSuccessDialog extends StatelessWidget {
   }
 }
 
-// جستجوی محصول
-class _ProductSearchField extends ConsumerStatefulWidget {
-  final TextEditingController controller;
+// جستجوی محصول — نمایش inline در ناحیه Expanded
+class _ProductSearchInline extends ConsumerWidget {
+  final String query;
   final ValueChanged<Product> onProductSelected;
 
-  const _ProductSearchField({
-    required this.controller,
+  const _ProductSearchInline({
+    required this.query,
     required this.onProductSelected,
   });
 
   @override
-  ConsumerState<_ProductSearchField> createState() => _ProductSearchFieldState();
-}
-
-class _ProductSearchFieldState extends ConsumerState<_ProductSearchField> {
-  @override
-  Widget build(BuildContext context) {
-    final query = widget.controller.text;
+  Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(productsStreamProvider).value ?? [];
-    final filtered = query.isEmpty
-        ? []
-        : products.where((p) =>
-            p.name.contains(query) ||
-            (p.barcode?.contains(query) ?? false)).take(5).toList();
+    final q = query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? products
+        : products
+            .where((p) =>
+                p.name.toLowerCase().contains(q) ||
+                (p.barcode?.contains(q) ?? false))
+            .toList();
 
-    return Column(
-      children: [
-        TextField(
-          controller: widget.controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'نام یا بارکد محصول...',
-            hintStyle: TextStyle(fontFamily: 'Vazirmatn'),
-            prefixIcon: Icon(Icons.search),
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-        if (filtered.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-            ),
-            child: Column(
-              children: filtered.map((p) => ListTile(
-                dense: true,
-                title: Text(p.name,
-                    style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 14)),
-                subtitle: Text(
-                  CurrencyFormatter.format(p.sellPrice),
-                  style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 12),
-                ),
-                trailing: Text(
-                  '${p.stockQuantity} عدد',
-                  style: TextStyle(
+    if (products.isEmpty) {
+      return const Center(
+        child: Text('هنوز محصولی ثبت نشده',
+            style: TextStyle(
+                fontFamily: 'Vazirmatn',
+                fontSize: 14,
+                color: AppColors.textHint)),
+      );
+    }
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.search_off, size: 48, color: AppColors.textHint),
+            const SizedBox(height: 12),
+            Text('"$query" یافت نشد',
+                style: const TextStyle(
                     fontFamily: 'Vazirmatn',
-                    fontSize: 12,
-                    color: p.isLowStock ? AppColors.error : AppColors.textSecondary,
-                  ),
-                ),
-                onTap: () => widget.onProductSelected(p),
-              )).toList(),
+                    fontSize: 14,
+                    color: AppColors.textSecondary)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      itemCount: filtered.length,
+      separatorBuilder: (_, __) =>
+          const Divider(height: 1, color: AppColors.divider),
+      itemBuilder: (_, i) {
+        final p = filtered[i];
+        return ListTile(
+          dense: true,
+          title: Text(p.name,
+              style: const TextStyle(
+                  fontFamily: 'Vazirmatn',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600)),
+          subtitle: Text(
+            CurrencyFormatter.format(p.sellPrice),
+            style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 12),
+          ),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color:
+                  p.isLowStock ? AppColors.errorLight : AppColors.successLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '${p.stockQuantity} عدد',
+              style: TextStyle(
+                fontFamily: 'Vazirmatn',
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: p.isLowStock ? AppColors.error : AppColors.success,
+              ),
             ),
           ),
-      ],
+          onTap: () => onProductSelected(p),
+        );
+      },
     );
   }
 }
@@ -946,7 +1043,8 @@ class _CustomerPickerSheet extends ConsumerStatefulWidget {
   const _CustomerPickerSheet({required this.onSelected, required this.onClear});
 
   @override
-  ConsumerState<_CustomerPickerSheet> createState() => _CustomerPickerSheetState();
+  ConsumerState<_CustomerPickerSheet> createState() =>
+      _CustomerPickerSheetState();
 }
 
 class _CustomerPickerSheetState extends ConsumerState<_CustomerPickerSheet> {
@@ -1018,7 +1116,8 @@ class _CustomerPickerSheetState extends ConsumerState<_CustomerPickerSheet> {
               ),
               // گزینه بدون مشتری
               ListTile(
-                leading: const Icon(Icons.person_off_outlined, color: AppColors.textSecondary),
+                leading: const Icon(Icons.person_off_outlined,
+                    color: AppColors.textSecondary),
                 title: const Text(AppStrings.noCustomer,
                     style: TextStyle(fontFamily: 'Vazirmatn')),
                 onTap: widget.onClear,
@@ -1027,7 +1126,8 @@ class _CustomerPickerSheetState extends ConsumerState<_CustomerPickerSheet> {
               // لیست مشتریان از دیتابیس
               Expanded(
                 child: customersAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (e, _) => Center(
                     child: Text('خطا: $e',
                         style: const TextStyle(fontFamily: 'Vazirmatn')),
@@ -1131,7 +1231,10 @@ class _DiscountSheetState extends State<_DiscountSheet> {
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1139,7 +1242,9 @@ class _DiscountSheetState extends State<_DiscountSheet> {
       textDirection: TextDirection.rtl,
       child: Padding(
         padding: EdgeInsets.only(
-          left: 16, right: 16, top: 16,
+          left: 16,
+          right: 16,
+          top: 16,
           bottom: MediaQuery.of(context).viewInsets.bottom + 16,
         ),
         child: Column(
@@ -1186,7 +1291,9 @@ class _DiscountSheetState extends State<_DiscountSheet> {
             ElevatedButton(
               onPressed: () {
                 final v = double.tryParse(
-                    CurrencyFormatter.toEnglishNumber(_ctrl.text).replaceAll(',', '')) ?? 0;
+                        CurrencyFormatter.toEnglishNumber(_ctrl.text)
+                            .replaceAll(',', '')) ??
+                    0;
                 widget.onApply(v, _isPercent);
               },
               child: const Text('اعمال تخفیف',

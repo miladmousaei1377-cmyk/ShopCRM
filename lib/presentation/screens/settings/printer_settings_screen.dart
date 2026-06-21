@@ -14,7 +14,8 @@ class PrinterSettingsScreen extends ConsumerStatefulWidget {
   const PrinterSettingsScreen({super.key});
 
   @override
-  ConsumerState<PrinterSettingsScreen> createState() => _PrinterSettingsScreenState();
+  ConsumerState<PrinterSettingsScreen> createState() =>
+      _PrinterSettingsScreenState();
 }
 
 class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
@@ -70,45 +71,70 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                     child: Row(
                       children: PrinterType.values
                           // بلوتوث فقط روی موبایل
-                          .where((t) => t != PrinterType.bluetooth || (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS))
+                          .where((t) =>
+                              t != PrinterType.bluetooth ||
+                              (!Platform.isWindows &&
+                                  !Platform.isLinux &&
+                                  !Platform.isMacOS))
                           // USB فقط روی ویندوز
-                          .where((t) => t != PrinterType.usb || Platform.isWindows)
+                          .where(
+                              (t) => t != PrinterType.usb || Platform.isWindows)
                           .map((type) {
                         final selected = state.settings.type == type;
                         IconData icon;
                         String label;
                         switch (type) {
-                          case PrinterType.bluetooth: icon = Icons.bluetooth; label = AppStrings.bluetoothPrinter;
-                          case PrinterType.wifi: icon = Icons.wifi; label = AppStrings.wifiPrinter;
-                          case PrinterType.usb: icon = Icons.usb; label = 'پرینتر USB/کابل';
+                          case PrinterType.bluetooth:
+                            icon = Icons.bluetooth;
+                            label = AppStrings.bluetoothPrinter;
+                          case PrinterType.wifi:
+                            icon = Icons.wifi;
+                            label = AppStrings.wifiPrinter;
+                          case PrinterType.usb:
+                            icon = Icons.usb;
+                            label = 'پرینتر USB/کابل';
                         }
                         return Expanded(
                           child: GestureDetector(
                             onTap: () {
                               ref.read(printerProvider.notifier).saveSettings(
-                                state.settings.copyWith(type: type),
-                              );
+                                    state.settings.copyWith(type: type),
+                                  );
                             },
                             child: Container(
                               margin: const EdgeInsets.symmetric(horizontal: 4),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               decoration: BoxDecoration(
-                                color: selected ? AppColors.primary.withOpacity(0.1) : AppColors.background,
+                                color: selected
+                                    ? AppColors.primary.withOpacity(0.1)
+                                    : AppColors.background,
                                 border: Border.all(
-                                  color: selected ? AppColors.primary : AppColors.border,
+                                  color: selected
+                                      ? AppColors.primary
+                                      : AppColors.border,
                                   width: selected ? 2 : 1,
                                 ),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Column(
                                 children: [
-                                  Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary, size: 28),
+                                  Icon(icon,
+                                      color: selected
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
+                                      size: 28),
                                   const SizedBox(height: 6),
-                                  Text(label,
+                                  Text(
+                                    label,
                                     style: TextStyle(
-                                      fontFamily: 'Vazirmatn', fontSize: 13,
-                                      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                                      color: selected ? AppColors.primary : AppColors.textSecondary,
+                                      fontFamily: 'Vazirmatn',
+                                      fontSize: 13,
+                                      fontWeight: selected
+                                          ? FontWeight.w700
+                                          : FontWeight.w400,
+                                      color: selected
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -162,9 +188,12 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                             children: [
                               Expanded(
                                 child: OutlinedButton.icon(
-                                  icon: const Icon(Icons.network_ping, size: 18),
+                                  icon:
+                                      const Icon(Icons.network_ping, size: 18),
                                   label: const Text(AppStrings.testConnection,
-                                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                                      style: TextStyle(
+                                          fontFamily: 'Vazirmatn',
+                                          fontSize: 13)),
                                   onPressed: _testWifiConnection,
                                 ),
                               ),
@@ -173,7 +202,9 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                                 child: ElevatedButton.icon(
                                   icon: const Icon(Icons.print, size: 18),
                                   label: const Text(AppStrings.testPrint,
-                                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                                      style: TextStyle(
+                                          fontFamily: 'Vazirmatn',
+                                          fontSize: 13)),
                                   onPressed: _testPrint,
                                 ),
                               ),
@@ -186,7 +217,8 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                             child: OutlinedButton.icon(
                               icon: const Icon(Icons.search, size: 18),
                               label: const Text('کشف پرینتر در شبکه',
-                                  style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                                  style: TextStyle(
+                                      fontFamily: 'Vazirmatn', fontSize: 13)),
                               onPressed: _discoverWifiPrinters,
                             ),
                           ),
@@ -203,7 +235,8 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                           if (state.settings.bluetoothDeviceName != null)
                             ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.bluetooth_connected, color: AppColors.primary),
+                              leading: const Icon(Icons.bluetooth_connected,
+                                  color: AppColors.primary),
                               title: Text(
                                 state.settings.bluetoothDeviceName!,
                                 style: const TextStyle(fontFamily: 'Vazirmatn'),
@@ -211,7 +244,9 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                               trailing: state.isConnected
                                   ? const Chip(
                                       label: Text('متصل',
-                                          style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 11)),
+                                          style: TextStyle(
+                                              fontFamily: 'Vazirmatn',
+                                              fontSize: 11)),
                                       backgroundColor: AppColors.successLight,
                                     )
                                   : null,
@@ -238,11 +273,16 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                           if (state.settings.usbPrinterName.isNotEmpty)
                             ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.print, color: AppColors.primary),
+                              leading: const Icon(Icons.print,
+                                  color: AppColors.primary),
                               title: Text(state.settings.usbPrinterName,
-                                  style: const TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w600)),
+                                  style: const TextStyle(
+                                      fontFamily: 'Vazirmatn',
+                                      fontWeight: FontWeight.w600)),
                               trailing: const Chip(
-                                label: Text('انتخاب‌شده', style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 11)),
+                                label: Text('انتخاب‌شده',
+                                    style: TextStyle(
+                                        fontFamily: 'Vazirmatn', fontSize: 11)),
                                 backgroundColor: AppColors.successLight,
                               ),
                             ),
@@ -260,8 +300,12 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                             children: [
                               Expanded(
                                 child: OutlinedButton.icon(
-                                  icon: const Icon(Icons.network_ping, size: 18),
-                                  label: const Text('تست اتصال', style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                                  icon:
+                                      const Icon(Icons.network_ping, size: 18),
+                                  label: const Text('تست اتصال',
+                                      style: TextStyle(
+                                          fontFamily: 'Vazirmatn',
+                                          fontSize: 13)),
                                   onPressed: _testWifiConnection,
                                 ),
                               ),
@@ -269,7 +313,10 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                               Expanded(
                                 child: ElevatedButton.icon(
                                   icon: const Icon(Icons.print, size: 18),
-                                  label: const Text(AppStrings.testPrint, style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                                  label: const Text(AppStrings.testPrint,
+                                      style: TextStyle(
+                                          fontFamily: 'Vazirmatn',
+                                          fontSize: 13)),
                                   onPressed: _testPrint,
                                 ),
                               ),
@@ -288,20 +335,24 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                       children: [
                         TextFormField(
                           controller: _storeNameCtrl,
-                          decoration: const InputDecoration(labelText: 'نام فروشگاه'),
-                          validator: (v) => Validators.required(v, fieldName: 'نام فروشگاه'),
+                          decoration:
+                              const InputDecoration(labelText: 'نام فروشگاه'),
+                          validator: (v) =>
+                              Validators.required(v, fieldName: 'نام فروشگاه'),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _storePhoneCtrl,
                           keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(labelText: AppStrings.phone),
+                          decoration: const InputDecoration(
+                              labelText: AppStrings.phone),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _storeAddressCtrl,
                           maxLines: 2,
-                          decoration: const InputDecoration(labelText: AppStrings.address),
+                          decoration: const InputDecoration(
+                              labelText: AppStrings.address),
                         ),
                       ],
                     ),
@@ -319,7 +370,10 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                       ),
                       child: Text(
                         state.error!,
-                        style: const TextStyle(fontFamily: 'Vazirmatn', color: AppColors.error, fontSize: 13),
+                        style: const TextStyle(
+                            fontFamily: 'Vazirmatn',
+                            color: AppColors.error,
+                            fontSize: 13),
                       ),
                     ),
 
@@ -328,7 +382,8 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                     child: ElevatedButton(
                       onPressed: _save,
                       child: const Text(AppStrings.save,
-                          style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 16)),
+                          style:
+                              TextStyle(fontFamily: 'Vazirmatn', fontSize: 16)),
                     ),
                   ),
                 ],
@@ -384,11 +439,11 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       builder: (_) => _BluetoothScanDialog(
         onSelect: (deviceId, deviceName) {
           ref.read(printerProvider.notifier).saveSettings(
-            ref.read(printerProvider).settings.copyWith(
-              bluetoothDeviceId: deviceId,
-              bluetoothDeviceName: deviceName,
-            ),
-          );
+                ref.read(printerProvider).settings.copyWith(
+                      bluetoothDeviceId: deviceId,
+                      bluetoothDeviceName: deviceName,
+                    ),
+              );
         },
       ),
     );
@@ -398,9 +453,8 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   Future<void> _discoverWifiPrinters() async {
     // استخراج subnet از IP جاری
     final ip = _ipCtrl.text.trim();
-    final subnet = ip.contains('.')
-        ? ip.split('.').take(3).join('.')
-        : '192.168.1';
+    final subnet =
+        ip.contains('.') ? ip.split('.').take(3).join('.') : '192.168.1';
 
     showDialog(
       context: context,
@@ -417,18 +471,30 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   Future<void> _saveSettings() async {
     final current = ref.read(printerProvider).settings;
     await ref.read(printerProvider.notifier).saveSettings(
-      current.copyWith(
-        wifiIp: _ipCtrl.text.trim(),
-        wifiPort: int.tryParse(_portCtrl.text) ?? 9100,
-        storeName: _storeNameCtrl.text.trim(),
-        storePhone: _storePhoneCtrl.text.trim(),
-        storeAddress: _storeAddressCtrl.text.trim(),
-      ),
-    );
+          current.copyWith(
+            wifiIp: _ipCtrl.text.trim(),
+            wifiPort: int.tryParse(_portCtrl.text) ?? 9100,
+            storeName: _storeNameCtrl.text.trim(),
+            storePhone: _storePhoneCtrl.text.trim(),
+            storeAddress: _storeAddressCtrl.text.trim(),
+          ),
+        );
   }
 
   Future<void> _discoverUsbPrinters() async {
-    final printers = await UsbPrinterService.listWindowsPrinters();
+    List<String> printers;
+    try {
+      printers = await UsbPrinterService.listWindowsPrinters();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('خطا در کشف پرینتر: $e',
+              style: const TextStyle(fontFamily: 'Vazirmatn')),
+          backgroundColor: AppColors.error,
+        ));
+      }
+      return;
+    }
     if (!mounted) return;
     if (printers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -440,31 +506,42 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
     }
     showDialog(
       context: context,
-      builder: (_) => Directionality(
+      builder: (dialogCtx) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          title: const Text('پرینترهای ویندوز', style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+          title: const Text('پرینترهای ویندوز',
+              style: TextStyle(
+                  fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
           content: SizedBox(
             width: 320,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: printers.map((name) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.print_outlined, color: AppColors.primary),
-                title: Text(name, style: const TextStyle(fontFamily: 'Vazirmatn')),
-                onTap: () {
-                  ref.read(printerProvider.notifier).saveSettings(
-                    ref.read(printerProvider).settings.copyWith(usbPrinterName: name),
-                  );
-                  Navigator.of(context).pop();
-                },
-              )).toList(),
+              children: printers
+                  .map((name) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.print_outlined,
+                            color: AppColors.primary),
+                        title: Text(name,
+                            style: const TextStyle(fontFamily: 'Vazirmatn')),
+                        onTap: () {
+                          ref.read(printerProvider.notifier).saveSettings(
+                                ref
+                                    .read(printerProvider)
+                                    .settings
+                                    .copyWith(usbPrinterName: name),
+                              );
+                          Navigator.of(dialogCtx)
+                              .pop(); // use dialogCtx not context
+                        },
+                      ))
+                  .toList(),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(AppStrings.close, style: TextStyle(fontFamily: 'Vazirmatn')),
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: const Text(AppStrings.close,
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
             ),
           ],
         ),
@@ -508,15 +585,24 @@ class _BluetoothScanDialogState extends State<_BluetoothScanDialog> {
   }
 
   void _startScan() {
-    setState(() { _scanning = true; _devices = []; _error = null; });
+    setState(() {
+      _scanning = true;
+      _devices = [];
+      _error = null;
+    });
     BluetoothPrinterService.scanDevices().listen(
-      (devices) { if (mounted) setState(() => _devices = devices); },
-      onDone: () { if (mounted) setState(() => _scanning = false); },
+      (devices) {
+        if (mounted) setState(() => _devices = devices);
+      },
+      onDone: () {
+        if (mounted) setState(() => _scanning = false);
+      },
       onError: (e) {
-        if (mounted) setState(() {
-          _scanning = false;
-          _error = 'بلوتوث در دسترس نیست یا مجوز داده نشده';
-        });
+        if (mounted)
+          setState(() {
+            _scanning = false;
+            _error = 'بلوتوث در دسترس نیست یا مجوز داده نشده';
+          });
       },
     );
   }
@@ -527,11 +613,14 @@ class _BluetoothScanDialogState extends State<_BluetoothScanDialog> {
       textDirection: TextDirection.rtl,
       child: AlertDialog(
         title: const Text('اسکن پرینتر بلوتوث',
-            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+            style: TextStyle(
+                fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
         content: SizedBox(
           width: 300,
           child: _error != null
-              ? Text(_error!, style: const TextStyle(fontFamily: 'Vazirmatn', color: AppColors.error))
+              ? Text(_error!,
+                  style: const TextStyle(
+                      fontFamily: 'Vazirmatn', color: AppColors.error))
               : _scanning && _devices.isEmpty
                   ? const Column(
                       mainAxisSize: MainAxisSize.min,
@@ -549,29 +638,38 @@ class _BluetoothScanDialogState extends State<_BluetoothScanDialog> {
                         )
                       : Column(
                           mainAxisSize: MainAxisSize.min,
-                          children: _devices.map((d) => ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.bluetooth, color: AppColors.primary),
-                                title: Text(d['name'] ?? '',
-                                    style: const TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w600)),
-                                subtitle: Text(d['rssi'] ?? '',
-                                    style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 11)),
-                                onTap: () {
-                                  widget.onSelect(d['id']!, d['name']!);
-                                  Navigator.of(context).pop();
-                                },
-                              )).toList(),
+                          children: _devices
+                              .map((d) => ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: const Icon(Icons.bluetooth,
+                                        color: AppColors.primary),
+                                    title: Text(d['name'] ?? '',
+                                        style: const TextStyle(
+                                            fontFamily: 'Vazirmatn',
+                                            fontWeight: FontWeight.w600)),
+                                    subtitle: Text(d['rssi'] ?? '',
+                                        style: const TextStyle(
+                                            fontFamily: 'Vazirmatn',
+                                            fontSize: 11)),
+                                    onTap: () {
+                                      widget.onSelect(d['id']!, d['name']!);
+                                      Navigator.of(context).pop();
+                                    },
+                                  ))
+                              .toList(),
                         ),
         ),
         actions: [
           if (!_scanning || _devices.isNotEmpty)
             TextButton(
               onPressed: _startScan,
-              child: const Text('اسکن مجدد', style: TextStyle(fontFamily: 'Vazirmatn')),
+              child: const Text('اسکن مجدد',
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
             ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text(AppStrings.close, style: TextStyle(fontFamily: 'Vazirmatn')),
+            child: const Text(AppStrings.close,
+                style: TextStyle(fontFamily: 'Vazirmatn')),
           ),
         ],
       ),
@@ -605,11 +703,18 @@ class _WifiDiscoveryDialogState extends State<_WifiDiscoveryDialog> {
   }
 
   Future<void> _scan() async {
-    setState(() { _scanning = true; _found = []; });
+    setState(() {
+      _scanning = true;
+      _found = [];
+    });
     try {
-      final result = await WiFiPrinterService.discoverPrinters(
-          subnet: widget.subnet);
-      if (mounted) setState(() { _found = result; _scanning = false; });
+      final result =
+          await WiFiPrinterService.discoverPrinters(subnet: widget.subnet);
+      if (mounted)
+        setState(() {
+          _found = result;
+          _scanning = false;
+        });
     } catch (_) {
       if (mounted) setState(() => _scanning = false);
     }
@@ -621,7 +726,8 @@ class _WifiDiscoveryDialogState extends State<_WifiDiscoveryDialog> {
       textDirection: TextDirection.rtl,
       child: AlertDialog(
         title: const Text('کشف پرینتر در شبکه',
-            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+            style: TextStyle(
+                fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
         content: SizedBox(
           width: 300,
           child: _scanning

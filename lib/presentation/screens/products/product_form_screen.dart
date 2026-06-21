@@ -49,12 +49,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   Future<void> _loadProduct() async {
     setState(() => _isLoading = true);
-    final product = await ref.read(productRepositoryProvider).findById(widget.productId!);
+    final product =
+        await ref.read(productRepositoryProvider).findById(widget.productId!);
     if (product != null && mounted) {
       _existingProduct = product;
       _nameCtrl.text = product.name;
       _barcodeCtrl.text = product.barcode ?? '';
-      _purchasePriceCtrl.text = CurrencyFormatter.formatNumber(product.purchasePrice);
+      _purchasePriceCtrl.text =
+          CurrencyFormatter.formatNumber(product.purchasePrice);
       _sellPriceCtrl.text = CurrencyFormatter.formatNumber(product.sellPrice);
       _stockCtrl.text = product.stockQuantity.toString();
       _minStockCtrl.text = product.minStockAlert.toString();
@@ -78,14 +80,38 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // بررسی تکراری بودن بارکد
+    final barcodeText = _barcodeCtrl.text.trim();
+    if (barcodeText.isNotEmpty) {
+      final existing =
+          await ref.read(productRepositoryProvider).findByBarcode(barcodeText);
+      if (existing != null && existing.id != (_existingProduct?.id ?? 0)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+              'بارکد تکراری — این بارکد قبلاً برای "${existing.name}" ثبت شده است',
+              style: const TextStyle(fontFamily: 'Vazirmatn'),
+            ),
+            backgroundColor: AppColors.warning,
+            duration: const Duration(seconds: 3),
+          ));
+        }
+        return;
+      }
+    }
+
     final product = Product(
       id: _existingProduct?.id ?? 0,
       name: _nameCtrl.text.trim(),
-      barcode: _barcodeCtrl.text.trim().isEmpty ? null : _barcodeCtrl.text.trim(),
+      barcode:
+          _barcodeCtrl.text.trim().isEmpty ? null : _barcodeCtrl.text.trim(),
       purchasePrice: _purchasePrice,
       sellPrice: _sellPrice,
-      stockQuantity: int.tryParse(CurrencyFormatter.toEnglishNumber(_stockCtrl.text)) ?? 0,
-      minStockAlert: int.tryParse(CurrencyFormatter.toEnglishNumber(_minStockCtrl.text)) ?? 5,
+      stockQuantity:
+          int.tryParse(CurrencyFormatter.toEnglishNumber(_stockCtrl.text)) ?? 0,
+      minStockAlert:
+          int.tryParse(CurrencyFormatter.toEnglishNumber(_minStockCtrl.text)) ??
+              5,
       updatedAt: DateTime.now(),
       syncStatus: SyncStatus.pending,
     );
@@ -135,7 +161,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       labelText: AppStrings.productName,
                       prefixIcon: Icon(Icons.inventory_2_outlined),
                     ),
-                    validator: (v) => Validators.required(v, fieldName: 'نام محصول'),
+                    validator: (v) =>
+                        Validators.required(v, fieldName: 'نام محصول'),
                   ),
                   const SizedBox(height: 16),
 
@@ -250,7 +277,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     child: ElevatedButton(
                       onPressed: formState.isLoading ? null : _save,
                       child: const Text(AppStrings.save,
-                          style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 16)),
+                          style:
+                              TextStyle(fontFamily: 'Vazirmatn', fontSize: 16)),
                     ),
                   ),
                 ],
@@ -276,12 +304,16 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               setState(() => _barcodeCtrl.text = barcode);
 
               // جستجو در پایگاه داده محلی
-              final product = await ref.read(productRepositoryProvider).findByBarcode(barcode);
+              final product = await ref
+                  .read(productRepositoryProvider)
+                  .findByBarcode(barcode);
               if (product != null && mounted) {
                 setState(() {
                   _nameCtrl.text = product.name;
-                  _purchasePriceCtrl.text = CurrencyFormatter.formatNumber(product.purchasePrice);
-                  _sellPriceCtrl.text = CurrencyFormatter.formatNumber(product.sellPrice);
+                  _purchasePriceCtrl.text =
+                      CurrencyFormatter.formatNumber(product.purchasePrice);
+                  _sellPriceCtrl.text =
+                      CurrencyFormatter.formatNumber(product.sellPrice);
                   _stockCtrl.text = product.stockQuantity.toString();
                   _minStockCtrl.text = product.minStockAlert.toString();
                   _purchasePrice = product.purchasePrice;
@@ -312,7 +344,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 final data = response.data;
                 if (data != null && data['status'] == 1) {
                   final product = data['product'] as Map<String, dynamic>?;
-                  final name = (product?['product_name_fa'] as String?)?.trim().isNotEmpty == true
+                  final name = (product?['product_name_fa'] as String?)
+                              ?.trim()
+                              .isNotEmpty ==
+                          true
                       ? product!['product_name_fa'] as String
                       : (product?['product_name'] as String?)?.trim();
                   if (name != null && name.isNotEmpty && mounted) {
@@ -365,10 +400,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
               onPressed: () async {
-                Navigator.pop(context);
-                final ok = await ref.read(productFormProvider.notifier)
+                Navigator.pop(context); // بستن دیالوگ
+                final ok = await ref
+                    .read(productFormProvider.notifier)
                     .delete(widget.productId!);
-                if (ok && mounted) context.pop();
+                if (ok && mounted) context.go('/products'); // رفتن به لیست
               },
               child: const Text(AppStrings.delete),
             ),
