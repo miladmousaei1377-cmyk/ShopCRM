@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/validators.dart';
@@ -11,6 +13,7 @@ import '../../providers/product_provider.dart';
 import '../../widgets/barcode/barcode_scanner_widget.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/common/currency_input.dart';
+import '../../../services/product_image_service.dart';
 
 class ProductFormScreen extends ConsumerStatefulWidget {
   final int? productId;
@@ -35,6 +38,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   double _sellPrice = 0;
   bool _isLoading = false;
   Product? _existingProduct;
+  XFile? _pickedImage;
+  File? _currentImage;
+  bool _removeImage = false;
 
   @override
   void initState() {
@@ -62,6 +68,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       _minStockCtrl.text = product.minStockAlert.toString();
       _purchasePrice = product.purchasePrice;
       _sellPrice = product.sellPrice;
+      _currentImage = await ProductImageService.resolve(product.imageUrl);
     }
     setState(() => _isLoading = false);
   }
@@ -100,6 +107,22 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       }
     }
 
+    String? imagePath = _removeImage ? null : _existingProduct?.imageUrl;
+    if (_pickedImage != null) {
+      try {
+        imagePath = await ProductImageService.importImage(_pickedImage!);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('فایل تصویر معتبر نیست',
+                style: TextStyle(fontFamily: 'Vazirmatn')),
+            backgroundColor: AppColors.error,
+          ));
+        }
+        return;
+      }
+    }
+    final previousImage = _existingProduct?.imageUrl;
     final product = Product(
       id: _existingProduct?.id ?? 0,
       name: _nameCtrl.text.trim(),
@@ -112,12 +135,24 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       minStockAlert:
           int.tryParse(CurrencyFormatter.toEnglishNumber(_minStockCtrl.text)) ??
               5,
+      imageUrl: imagePath,
       updatedAt: DateTime.now(),
       syncStatus: SyncStatus.pending,
     );
 
     final success = await ref.read(productFormProvider.notifier).save(product);
-    if (success && mounted) {
+    if (!success) {
+      if (_pickedImage != null && imagePath != null) {
+        await ProductImageService.delete(imagePath);
+      }
+      return;
+    }
+    if (previousImage != null && previousImage != imagePath) {
+      await ref
+          .read(productRepositoryProvider)
+          .deleteImageIfUnused(previousImage);
+    }
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('محصول با موفقیت ذخیره شد',
             style: TextStyle(fontFamily: 'Vazirmatn')),
@@ -154,6 +189,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  _buildImageControl(),
+                  const SizedBox(height: 16),
                   // نام محصول
                   TextFormField(
                     controller: _nameCtrl,
@@ -288,6 +325,86 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildImageControl() {
+    final preview =
+        _pickedImage != null ? File(_pickedImage!.path) : _currentImage;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 88,
+              height: 88,
+              child: preview == null
+                  ? const ColoredBox(
+                      color: AppColors.background,
+                      child:
+                          Icon(Icons.image_outlined, color: AppColors.textHint),
+                    )
+                  : Image.file(preview,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const ColoredBox(
+                            color: AppColors.background,
+                            child: Icon(Icons.broken_image_outlined,
+                                color: AppColors.textHint),
+                          )),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _pickImage(ImageSource.gallery),
+                  icon: const Icon(Icons.folder_open_outlined, size: 18),
+                  label: Text(preview == null ? 'انتخاب تصویر' : 'تغییر تصویر'),
+                ),
+                if (!Platform.isWindows &&
+                    !Platform.isLinux &&
+                    !Platform.isMacOS)
+                  OutlinedButton.icon(
+                    onPressed: () => _pickImage(ImageSource.camera),
+                    icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                    label: const Text('دوربین'),
+                  ),
+                if (preview != null)
+                  TextButton.icon(
+                    onPressed: () => setState(() {
+                      _pickedImage = null;
+                      _currentImage = null;
+                      _removeImage = true;
+                    }),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('حذف'),
+                    style:
+                        TextButton.styleFrom(foregroundColor: AppColors.error),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(source: source);
+    if (picked != null && mounted) {
+      setState(() {
+        _pickedImage = picked;
+        _removeImage = false;
+      });
+    }
   }
 
   void _scanBarcode() {

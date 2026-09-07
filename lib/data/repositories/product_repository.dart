@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../../data/local/database.dart';
 import '../../domain/models/product.dart';
+import '../../services/product_image_service.dart';
 
 class ProductRepository {
   final AppDatabase _db;
@@ -62,27 +63,40 @@ class ProductRepository {
   Future<void> updateStock(int productId, int newStock) =>
       _db.productsDao.updateStock(productId, newStock);
 
-  Future<void> deleteProduct(int id) =>
-      _db.productsDao.deactivateProduct(id);
+  Future<void> deleteProduct(int id) async {
+    final product = await findById(id);
+    await _db.transaction(() async {
+      await _db.productsDao.deactivateProduct(id);
+      await _db.productsDao.clearImage(id);
+    });
+    await deleteImageIfUnused(product?.imageUrl);
+  }
+
+  Future<void> deleteImageIfUnused(String? path) async {
+    if (path == null) return;
+    if (await _db.productsDao.imageReferenceCount(path) == 0) {
+      await ProductImageService.delete(path);
+    }
+  }
 
   Future<int> getProductCount() => _db.productsDao.getProductCount();
 
   Product _mapToModel(ProductsTableData row) => Product(
-    id: row.id,
-    serverId: row.serverId,
-    barcode: row.barcode,
-    name: row.name,
-    categoryId: row.categoryId,
-    purchasePrice: row.purchasePrice,
-    sellPrice: row.sellPrice,
-    stockQuantity: row.stockQuantity,
-    minStockAlert: row.minStockAlert,
-    imageUrl: row.imageUrl,
-    isActive: row.isActive,
-    updatedAt: row.updatedAt,
-    syncStatus: SyncStatus.values.firstWhere(
-      (s) => s.name == row.syncStatus,
-      orElse: () => SyncStatus.pending,
-    ),
-  );
+        id: row.id,
+        serverId: row.serverId,
+        barcode: row.barcode,
+        name: row.name,
+        categoryId: row.categoryId,
+        purchasePrice: row.purchasePrice,
+        sellPrice: row.sellPrice,
+        stockQuantity: row.stockQuantity,
+        minStockAlert: row.minStockAlert,
+        imageUrl: row.imageUrl,
+        isActive: row.isActive,
+        updatedAt: row.updatedAt,
+        syncStatus: SyncStatus.values.firstWhere(
+          (s) => s.name == row.syncStatus,
+          orElse: () => SyncStatus.pending,
+        ),
+      );
 }

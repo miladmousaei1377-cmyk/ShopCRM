@@ -59,9 +59,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     final success = await ref.read(authProvider.notifier).login(
-      _usernameController.text.trim(),
-      _passwordController.text,
-    );
+          _usernameController.text.trim(),
+          _passwordController.text,
+          remember: _rememberMe,
+        );
     if (success && mounted) context.go('/dashboard');
   }
 
@@ -105,21 +106,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.store_rounded, size: 52, color: Colors.white),
+                      child: const Icon(Icons.store_rounded,
+                          size: 52, color: Colors.white),
                     ),
                     const SizedBox(height: 24),
                     const Text(
                       AppStrings.appName,
                       style: TextStyle(
-                        fontFamily: 'Vazirmatn', fontSize: 28,
-                        fontWeight: FontWeight.w800, color: AppColors.textPrimary,
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
                       'سیستم مدیریت فروشگاه',
                       style: TextStyle(
-                        fontFamily: 'Vazirmatn', fontSize: 14, color: AppColors.textSecondary,
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 48),
@@ -127,7 +133,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     // فرم ورود
                     Card(
                       elevation: 3,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: Form(
@@ -138,8 +145,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               const Text(
                                 AppStrings.login,
                                 style: TextStyle(
-                                  fontFamily: 'Vazirmatn', fontSize: 20,
-                                  fontWeight: FontWeight.w700, color: AppColors.textPrimary,
+                                  fontFamily: 'Vazirmatn',
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -170,8 +179,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     icon: Icon(_passwordVisible
                                         ? Icons.visibility_off
                                         : Icons.visibility),
-                                    onPressed: () => setState(
-                                        () => _passwordVisible = !_passwordVisible),
+                                    onPressed: () => setState(() =>
+                                        _passwordVisible = !_passwordVisible),
                                   ),
                                 ),
                                 validator: Validators.password,
@@ -184,13 +193,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 children: [
                                   Checkbox(
                                     value: _rememberMe,
-                                    onChanged: (v) =>
-                                        setState(() => _rememberMe = v ?? false),
+                                    onChanged: (v) => setState(
+                                        () => _rememberMe = v ?? false),
                                     activeColor: AppColors.primary,
                                   ),
                                   const Text(AppStrings.rememberMe,
                                       style: TextStyle(
-                                        fontFamily: 'Vazirmatn', fontSize: 13,
+                                        fontFamily: 'Vazirmatn',
+                                        fontSize: 13,
                                         color: AppColors.textSecondary,
                                       )),
                                 ],
@@ -205,7 +215,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     color: AppColors.errorLight,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                        color: AppColors.error.withValues(alpha: 0.3)),
+                                        color: AppColors.error
+                                            .withValues(alpha: 0.3)),
                                   ),
                                   child: Row(
                                     children: [
@@ -215,7 +226,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       Expanded(
                                         child: Text(authState.error!,
                                             style: const TextStyle(
-                                              fontFamily: 'Vazirmatn', fontSize: 13,
+                                              fontFamily: 'Vazirmatn',
+                                              fontSize: 13,
                                               color: AppColors.error,
                                             )),
                                       ),
@@ -228,7 +240,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               SizedBox(
                                 height: 52,
                                 child: ElevatedButton(
-                                  onPressed: authState.isLoading ? null : _login,
+                                  onPressed:
+                                      authState.isLoading ? null : _login,
                                   child: const Text(AppStrings.loginButton),
                                 ),
                               ),
@@ -240,10 +253,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   onPressed: _loginWithBiometric,
                                   icon: const Icon(Icons.fingerprint, size: 22),
                                   label: const Text('ورود با اثر انگشت',
-                                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 14)),
+                                      style: TextStyle(
+                                          fontFamily: 'Vazirmatn',
+                                          fontSize: 14)),
                                   style: OutlinedButton.styleFrom(
                                     minimumSize: const Size.fromHeight(48),
-                                    side: const BorderSide(color: AppColors.primary),
+                                    side: const BorderSide(
+                                        color: AppColors.primary),
                                     foregroundColor: AppColors.primary,
                                   ),
                                 ),
@@ -256,7 +272,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 24),
                     Text(AppStrings.appVersion,
                         style: const TextStyle(
-                          fontFamily: 'Vazirmatn', fontSize: 12, color: AppColors.textHint,
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 12,
+                          color: AppColors.textHint,
                         )),
                   ],
                 ),

@@ -11,6 +11,8 @@ import '../../../domain/models/customer.dart';
 import '../../../domain/models/invoice.dart';
 import '../../../domain/models/product.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/ledger_provider.dart';
+import '../../../domain/models/ledger_entry.dart';
 import 'customers_screen.dart' show CustomerFormDialog;
 
 /// Provider برای دریافت اطلاعات یک مشتری خاص
@@ -393,6 +395,16 @@ class _CustomerDetailBody extends ConsumerWidget {
             ),
           ),
         ],
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () =>
+                context.go('/accounting?customerId=${customer.id}'),
+            icon: const Icon(Icons.account_balance_outlined),
+            label: const Text('مشاهده دفتر حساب'),
+          ),
+        ),
       ],
     );
   }
@@ -797,19 +809,24 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
 
   Future<void> _confirm() async {
     final paid = CurrencyFormatter.parse(_amountCtrl.text) ?? 0.0;
-    if (paid <= 0) return;
+    if (paid <= 0 || paid > widget.debtAmount) return;
+    final remainingDebt = widget.debtAmount - paid;
     setState(() => _isProcessing = true);
     try {
-      final newDebt = (widget.debtAmount - paid).clamp(0.0, double.infinity);
-      await ref
-          .read(customerRepositoryProvider)
-          .updateDebt(widget.customer.id, newDebt);
+      await ref.read(ledgerRepositoryProvider).create(
+            customerId: widget.customer.id,
+            type: LedgerEntryType.payment,
+            amount: paid.round(),
+            direction: LedgerDirection.credit,
+            operationDate: DateTime.now(),
+            description: 'پرداخت بدهی (${_method.label})',
+          );
       widget.onPaid();
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-            newDebt == 0
+            remainingDebt == 0
                 ? 'حساب ${widget.customer.name} کاملاً تسویه شد'
                 : 'پرداخت ${CurrencyFormatter.format(paid)} ثبت شد',
             style: const TextStyle(fontFamily: 'Vazirmatn'),

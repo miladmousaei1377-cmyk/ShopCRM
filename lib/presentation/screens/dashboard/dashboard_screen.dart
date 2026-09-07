@@ -14,7 +14,6 @@ import '../../widgets/common/stat_card.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/charts/sales_chart.dart';
 import '../../../domain/models/invoice.dart';
-import '../../providers/prediction_provider.dart';
 import '../../providers/theme_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -38,7 +37,9 @@ class DashboardScreen extends ConsumerWidget {
           title: const Text(AppStrings.dashboard),
           actions: [
             IconButton(
-              icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+              icon: Icon(isDark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined),
               onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
               tooltip: isDark ? 'حالت روشن' : 'حالت تاریک',
             ),
@@ -81,67 +82,64 @@ class DashboardScreen extends ConsumerWidget {
                 LayoutBuilder(builder: (context, constraints) {
                   final isWide = constraints.maxWidth > 700;
                   return GridView.count(
-                  crossAxisCount: isWide ? 4 : 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: isWide ? 2.2 : 1.25,
-                  children: [
-                    StatCard(
-                      title: AppStrings.todaySales,
-                      value: todaySales.when(
-                        data: (v) => CurrencyFormatter.format(v),
-                        loading: () => '...',
-                        error: (_, __) => '---',
+                    crossAxisCount: isWide ? 4 : 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: isWide ? 2.2 : 1.25,
+                    children: [
+                      StatCard(
+                        title: AppStrings.todaySales,
+                        value: todaySales.when(
+                          data: (v) => CurrencyFormatter.format(v),
+                          loading: () => '...',
+                          error: (_, __) => '---',
+                        ),
+                        icon: Icons.point_of_sale,
+                        color: AppColors.cardSales,
+                        onTap: () => context.go('/invoices'),
                       ),
-                      icon: Icons.point_of_sale,
-                      color: AppColors.cardSales,
-                      onTap: () => context.go('/invoices'),
-                    ),
-                    StatCard(
-                      title: AppStrings.totalInventory,
-                      value: productCount.when(
-                        data: (products) => '${CurrencyFormatter.formatNumber(products.length)} محصول',
-                        loading: () => '...',
-                        error: (_, __) => '---',
+                      StatCard(
+                        title: AppStrings.totalInventory,
+                        value: productCount.when(
+                          data: (products) =>
+                              '${CurrencyFormatter.formatNumber(products.length)} محصول',
+                          loading: () => '...',
+                          error: (_, __) => '---',
+                        ),
+                        icon: Icons.inventory_2_outlined,
+                        color: AppColors.cardInventory,
+                        onTap: () => context.go('/products'),
                       ),
-                      icon: Icons.inventory_2_outlined,
-                      color: AppColors.cardInventory,
-                      onTap: () => context.go('/products'),
-                    ),
-                    StatCard(
-                      title: AppStrings.inventory,
-                      value: productCount.when(
-                        data: (products) => '${CurrencyFormatter.formatNumber(
-                          products.fold<int>(0, (s, p) => s + p.stockQuantity)
-                        )} عدد',
-                        loading: () => '...',
-                        error: (_, __) => '---',
+                      StatCard(
+                        title: AppStrings.inventory,
+                        value: productCount.when(
+                          data: (products) =>
+                              '${CurrencyFormatter.formatNumber(products.fold<int>(0, (s, p) => s + p.stockQuantity))} عدد',
+                          loading: () => '...',
+                          error: (_, __) => '---',
+                        ),
+                        icon: Icons.warehouse_outlined,
+                        color: AppColors.cardAlert,
+                        onTap: () => context.go('/inventory'),
                       ),
-                      icon: Icons.warehouse_outlined,
-                      color: AppColors.cardAlert,
-                      onTap: () => context.go('/inventory'),
-                    ),
-                    StatCard(
-                      title: AppStrings.customers,
-                      value: customerCount.when(
-                        data: (list) => '${CurrencyFormatter.formatNumber(list.length)} نفر',
-                        loading: () => '...',
-                        error: (_, __) => '---',
+                      StatCard(
+                        title: AppStrings.customers,
+                        value: customerCount.when(
+                          data: (list) =>
+                              '${CurrencyFormatter.formatNumber(list.length)} نفر',
+                          loading: () => '...',
+                          error: (_, __) => '---',
+                        ),
+                        icon: Icons.people_outline,
+                        color: AppColors.cardDebt,
+                        onTap: () => context.go('/customers'),
                       ),
-                      icon: Icons.people_outline,
-                      color: AppColors.cardDebt,
-                      onTap: () => context.go('/customers'),
-                    ),
-                  ],
-                );
+                    ],
+                  );
                 }),
                 const SizedBox(height: 16),
-
-                // کارت خلاصه پیش‌بینی
-                _PredictionSummaryCard(),
-                const SizedBox(height: 24),
 
                 // نمودار فروش هفتگی
                 _SectionHeader(title: AppStrings.weeklySalesChart),
@@ -157,8 +155,9 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                       error: (_, __) => const SizedBox(
                         height: 100,
-                        child: Center(child: Text('خطا در بارگذاری نمودار',
-                            style: TextStyle(fontFamily: 'Vazirmatn'))),
+                        child: Center(
+                            child: Text('خطا در بارگذاری نمودار',
+                                style: TextStyle(fontFamily: 'Vazirmatn'))),
                       ),
                     ),
                   ),
@@ -173,7 +172,8 @@ class DashboardScreen extends ConsumerWidget {
                     TextButton(
                       onPressed: () => context.go('/invoices'),
                       child: const Text('مشاهده همه',
-                          style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                          style:
+                              TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
                     ),
                   ],
                 ),
@@ -185,9 +185,12 @@ class DashboardScreen extends ConsumerWidget {
                           message: 'هنوز فاکتوری ثبت نشده',
                         )
                       : Column(
-                          children: invoices.map((inv) => _InvoiceTile(invoice: inv)).toList(),
+                          children: invoices
+                              .map((inv) => _InvoiceTile(invoice: inv))
+                              .toList(),
                         ),
-                  loading: () => const ShimmerList(itemCount: 3, itemHeight: 64),
+                  loading: () =>
+                      const ShimmerList(itemCount: 3, itemHeight: 64),
                   error: (_, __) => _ErrorWidget(
                     onRetry: () => ref.invalidate(recentInvoicesProvider),
                   ),
@@ -311,7 +314,8 @@ class _ErrorWidget extends StatelessWidget {
       child: Column(
         children: [
           const Text('خطا در بارگذاری',
-              style: TextStyle(fontFamily: 'Vazirmatn', color: AppColors.error)),
+              style:
+                  TextStyle(fontFamily: 'Vazirmatn', color: AppColors.error)),
           TextButton(
             onPressed: onRetry,
             child: const Text(AppStrings.retry,
@@ -356,77 +360,6 @@ class _SyncStatusChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PredictionSummaryCard extends ConsumerWidget {
-  const _PredictionSummaryCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final predictionAsync = ref.watch(dashboardPredictionProvider);
-    return predictionAsync.when(
-      loading: () => const SizedBox(),
-      error: (_, __) => const SizedBox(),
-      data: (pred) => GestureDetector(
-        onTap: () => context.go('/prediction'),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1565C0), Color(0xFF6A1B9A)],
-              begin: Alignment.centerRight,
-              end: Alignment.centerLeft,
-            ),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'پیش‌بینی فردا',
-                      style: TextStyle(
-                        fontFamily: 'Vazirmatn',
-                        fontSize: 11,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      CurrencyFormatter.format(pred.tomorrowPrediction),
-                      style: const TextStyle(
-                        fontFamily: 'Vazirmatn',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                pred.trend == 'up'
-                    ? Icons.trending_up
-                    : pred.trend == 'down'
-                        ? Icons.trending_down
-                        : Icons.trending_flat,
-                color: pred.trend == 'up'
-                    ? Colors.greenAccent
-                    : pred.trend == 'down'
-                        ? Colors.redAccent
-                        : Colors.white70,
-                size: 24,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

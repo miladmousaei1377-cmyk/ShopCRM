@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
+import 'package:image/image.dart' as image;
 import '../../domain/models/invoice.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_converter.dart';
@@ -13,15 +14,18 @@ import '../../core/utils/date_converter.dart';
 /// و سپس به صورت تصویر (GS v 0) به پرینتر می‌فرستیم.
 class EscPosBuilder {
   // ─── دستورات پایه ESC/POS ────────────────────────────────────
-  static final _init        = Uint8List.fromList([0x1B, 0x40]);       // Initialize
-  static final _cut         = Uint8List.fromList([0x1D, 0x56, 0x41, 0x00]); // برش کاغذ
-  static final _feedLines   = (int n) => Uint8List.fromList([0x1B, 0x64, n]); // پیشروی n خط
+  static final _init = Uint8List.fromList([0x1B, 0x40]); // Initialize
+  static final _cut = Uint8List.fromList([0x1D, 0x56, 0x41, 0x00]); // برش کاغذ
+  static Uint8List _feedLines(int n) =>
+      Uint8List.fromList([0x1B, 0x64, n]); // پیشروی n خط
   static final _centerAlign = Uint8List.fromList([0x1B, 0x61, 0x01]); // وسط‌چین
-  static final _leftAlign   = Uint8List.fromList([0x1B, 0x61, 0x00]); // چپ‌چین
-  static final _boldOn      = Uint8List.fromList([0x1B, 0x45, 0x01]); // پررنگ روشن
-  static final _boldOff     = Uint8List.fromList([0x1B, 0x45, 0x00]); // پررنگ خاموش
-  static final _doubleHeight= Uint8List.fromList([0x1B, 0x21, 0x10]); // ارتفاع دو برابر
-  static final _normalSize  = Uint8List.fromList([0x1B, 0x21, 0x00]); // سایز عادی
+  static final _leftAlign = Uint8List.fromList([0x1B, 0x61, 0x00]); // چپ‌چین
+  static final _boldOn = Uint8List.fromList([0x1B, 0x45, 0x01]); // پررنگ روشن
+  static final _boldOff = Uint8List.fromList([0x1B, 0x45, 0x00]); // پررنگ خاموش
+  static final _doubleHeight =
+      Uint8List.fromList([0x1B, 0x21, 0x10]); // ارتفاع دو برابر
+  static final _normalSize =
+      Uint8List.fromList([0x1B, 0x21, 0x00]); // سایز عادی
 
   /// ساخت bytes کامل رسید برای ارسال به پرینتر
   /// [paperWidthPx]: عرض کاغذ به پیکسل (۵۸mm=۳۸۴ | ۸۰mm=۵۷۶)
@@ -63,7 +67,7 @@ class EscPosBuilder {
     required double width,
   }) async {
     final recorder = ui.PictureRecorder();
-    final canvas   = Canvas(recorder);
+    final canvas = Canvas(recorder);
 
     // پس‌زمینه سفید
     canvas.drawRect(
@@ -72,12 +76,13 @@ class EscPosBuilder {
     );
 
     double y = 0;
-    const double lineH      = 28; // ارتفاع خط معمولی
+    const double lineH = 28; // ارتفاع خط معمولی
     const double smallLineH = 22; // ارتفاع خط کوچک
-    const double padding    = 8;
+    const double padding = 8;
 
     // تابع کمکی رسم متن
-    void drawText(String text, {
+    double drawText(
+      String text, {
       double fontSize = 14,
       bool bold = false,
       bool center = false,
@@ -98,6 +103,7 @@ class EscPosBuilder {
       tp.layout(maxWidth: width - padding * 2);
       final dx = center ? (width - tp.width) / 2 : padding;
       tp.paint(canvas, Offset(dx, y));
+      return tp.height;
     }
 
     // تابع کمکی رسم خط جداکننده
@@ -105,34 +111,38 @@ class EscPosBuilder {
       canvas.drawLine(
         Offset(padding, y + lineH / 2),
         Offset(width - padding, y + lineH / 2),
-        Paint()..color = Colors.black..strokeWidth = 0.5,
+        Paint()
+          ..color = Colors.black
+          ..strokeWidth = 0.5,
       );
       y += lineH / 2;
     }
 
     // ─── هدر رسید ────────────────────────────────────────────
-    drawText(storeName, fontSize: 20, bold: true, center: true);
-    y += lineH + 4;
+    y += drawText(storeName, fontSize: 20, bold: true, center: true) + 4;
     if (storeAddress.isNotEmpty) {
-      drawText(storeAddress, fontSize: 12, center: true);
-      y += smallLineH;
+      y += drawText(storeAddress, fontSize: 12, center: true)
+          .clamp(smallLineH, double.infinity);
     }
     if (storePhone.isNotEmpty) {
-      drawText('تلفن: $storePhone', fontSize: 12, center: true);
-      y += smallLineH;
+      y += drawText('تلفن: $storePhone', fontSize: 12, center: true)
+          .clamp(smallLineH, double.infinity);
     }
     y += 4;
     drawDivider();
     y += 4;
 
     // ─── شماره و تاریخ فاکتور ────────────────────────────────
-    drawText('شماره فاکتور: ${invoice.invoiceNumber}', fontSize: 13, center: true);
-    y += smallLineH;
-    drawText('تاریخ: ${DateConverter.toShamsiWithTime(invoice.createdAt)}', fontSize: 12, center: true);
-    y += smallLineH;
+    y += drawText('شماره فاکتور: ${invoice.invoiceNumber}',
+            fontSize: 13, center: true)
+        .clamp(smallLineH, double.infinity);
+    y += drawText('تاریخ: ${DateConverter.toShamsiWithTime(invoice.createdAt)}',
+            fontSize: 12, center: true)
+        .clamp(smallLineH, double.infinity);
     if (invoice.customerName != null) {
-      drawText('مشتری: ${invoice.customerName}', fontSize: 12, center: true);
-      y += smallLineH;
+      y +=
+          drawText('مشتری: ${invoice.customerName}', fontSize: 12, center: true)
+              .clamp(smallLineH, double.infinity);
     }
     y += 4;
     drawDivider();
@@ -140,37 +150,42 @@ class EscPosBuilder {
 
     // ─── آیتم‌های فاکتور ──────────────────────────────────────
     for (final item in invoice.items) {
-      final qty   = item.quantity.toString();
+      final qty = item.quantity.toString();
       final price = CurrencyFormatter.formatNumber(item.unitPrice);
       final total = CurrencyFormatter.formatNumber(item.subtotal);
-      drawText(item.productName, fontSize: 13, bold: true);
-      y += smallLineH;
-      drawText('$qty × $price = $total تومان', fontSize: 12);
-      y += smallLineH - 4;
+      y += drawText(item.productName, fontSize: 13, bold: true)
+          .clamp(smallLineH, double.infinity);
+      y += drawText('$qty × $price = $total تومان', fontSize: 12)
+          .clamp(smallLineH - 4, double.infinity);
     }
     y += 4;
     drawDivider();
     y += 4;
 
     // ─── جمع و مبالغ نهایی ───────────────────────────────────
-    drawText('جمع کل: ${CurrencyFormatter.format(invoice.totalAmount)}', fontSize: 13);
-    y += smallLineH;
+    y += drawText('جمع کل: ${CurrencyFormatter.format(invoice.totalAmount)}',
+            fontSize: 13)
+        .clamp(smallLineH, double.infinity);
     if (invoice.discountAmount > 0) {
-      drawText('تخفیف: ${CurrencyFormatter.format(invoice.discountAmount)}', fontSize: 12);
-      y += smallLineH;
+      y += drawText(
+              'تخفیف: ${CurrencyFormatter.format(invoice.discountAmount)}',
+              fontSize: 12)
+          .clamp(smallLineH, double.infinity);
     }
-    drawText('مبلغ نهایی: ${CurrencyFormatter.format(invoice.finalAmount)}',
-        fontSize: 16, bold: true);
-    y += lineH;
-    drawText('روش پرداخت: ${invoice.paymentMethod.label}', fontSize: 12);
-    y += smallLineH;
+    y += drawText(
+            'مبلغ نهایی: ${CurrencyFormatter.format(invoice.finalAmount)}',
+            fontSize: 16,
+            bold: true)
+        .clamp(lineH, double.infinity);
+    y += drawText('روش پرداخت: ${invoice.paymentMethod.label}', fontSize: 12)
+        .clamp(smallLineH, double.infinity);
     y += 4;
     drawDivider();
     y += 8;
 
     // ─── فوتر ─────────────────────────────────────────────────
-    drawText('با تشکر از خرید شما', fontSize: 14, center: true, bold: true);
-    y += lineH;
+    y += drawText('با تشکر از خرید شما', fontSize: 14, center: true, bold: true)
+        .clamp(lineH, double.infinity);
 
     final picture = recorder.endRecording();
     final img = await picture.toImage(width.toInt(), (y + 20).toInt());
@@ -180,15 +195,32 @@ class EscPosBuilder {
 
   /// تبدیل PNG bytes به دستورات ESC/POS رستر (GS v 0)
   static List<int> _imageToEscPos(Uint8List pngBytes, int widthPx) {
-    // عرض بر حسب بایت (هر بایت = ۸ پیکسل افقی)
-    final widthBytes = widthPx ~/ 8;
-    return [
-      0x1D, 0x76, 0x30, 0x00,          // GS v 0 — دستور print raster image
-      widthBytes & 0xFF,                // xL: بایت‌های عرض (کم‌ارزش)
-      (widthBytes >> 8) & 0xFF,         // xH: بایت‌های عرض (پرارزش)
-      0x00, 0x00,                       // yL، yH: ارتفاع (در پیاده‌سازی کامل پر می‌شود)
-      // TODO: تبدیل کانال‌های PNG به monochrome bitmap
+    final decoded = image.decodePng(pngBytes);
+    if (decoded == null) throw const FormatException('تصویر رسید معتبر نیست');
+    final widthBytes = (widthPx + 7) ~/ 8;
+    final height = decoded.height;
+    final result = <int>[
+      0x1D, 0x76, 0x30, 0x00, // GS v 0 — دستور print raster image
+      widthBytes & 0xFF, // xL: بایت‌های عرض (کم‌ارزش)
+      (widthBytes >> 8) & 0xFF, // xH: بایت‌های عرض (پرارزش)
+      height & 0xFF,
+      (height >> 8) & 0xFF,
     ];
+    for (var y = 0; y < height; y++) {
+      for (var byteX = 0; byteX < widthBytes; byteX++) {
+        var value = 0;
+        for (var bit = 0; bit < 8; bit++) {
+          final x = byteX * 8 + bit;
+          if (x >= decoded.width) continue;
+          final pixel = decoded.getPixel(x, y);
+          final luminance =
+              (pixel.r * 299 + pixel.g * 587 + pixel.b * 114) / 1000;
+          if (pixel.a > 127 && luminance < 160) value |= 0x80 >> bit;
+        }
+        result.add(value);
+      }
+    }
+    return result;
   }
 
   /// رسید متنی ASCII برای تست ساده پرینتر (بدون فارسی)

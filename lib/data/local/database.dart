@@ -1,14 +1,18 @@
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
+import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
+import 'dart:io';
+import '../../services/app_paths.dart';
 import 'tables/products_table.dart';
 import 'tables/invoices_table.dart';
 import 'tables/customers_table.dart';
 import 'tables/inventory_table.dart';
-import 'tables/prediction_cache_table.dart';
+import 'tables/users_table.dart';
+import 'tables/ledger_entries_table.dart';
 import 'daos/products_dao.dart';
 import 'daos/invoices_dao.dart';
 import 'daos/customers_dao.dart';
-import 'daos/prediction_dao.dart';
+import 'daos/ledger_dao.dart';
 
 part 'database.g.dart';
 
@@ -24,41 +28,69 @@ part 'database.g.dart';
     InvoiceItemsTable,
     CustomersTable,
     InventoryLogsTable,
-    AiAnalysisCacheTable,
-    AiUsageLogTable,
+    UsersTable,
+    SessionsTable,
+    LedgerEntriesTable,
+    LedgerEntryAuditsTable,
   ],
   daos: [
     ProductsDao,
     InvoicesDao,
     CustomersDao,
-    PredictionDao,
+    LedgerDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
+  AppDatabase.forTesting(super.executor);
+
+  static const databaseFileName = 'shop_crm.sqlite';
+
+  static Future<String> databaseFilePath() async {
+    final dataDir = await AppPaths.dataDirectory();
+    return p.join(dataDir.path, databaseFileName);
+  }
 
   /// نسخه schema — با هر تغییر ساختار جدول باید افزایش یابد
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) async {
-      await m.createAll();
-    },
-    onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        // v1 → v2: اضافه کردن جداول پیش‌بینی
-        await m.createTable(aiAnalysisCacheTable);
-        await m.createTable(aiUsageLogTable);
-      }
-      if (from < 3) {
-        await m.addColumn(invoicesTable, invoicesTable.customerName);
-      }
-    },
-  );
+        onCreate: (m) async {
+          await m.createAll();
+        },
+        beforeOpen: (details) async {
+          await customStatement('PRAGMA foreign_keys = ON');
+          await customStatement('PRAGMA journal_mode = WAL');
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 3) {
+            await m.addColumn(invoicesTable, invoicesTable.customerName);
+          }
+          if (from < 4) {
+            await m.createTable(usersTable);
+            await m.createTable(sessionsTable);
+            await m.createTable(ledgerEntriesTable);
+            await m.createTable(ledgerEntryAuditsTable);
+            // انتقال بدهی فعلی کاربران به سند افتتاحیه، بدون حذف یا بازنویسی داده‌ها.
+            await customStatement('''
+          INSERT INTO ledger_entries
+            (id, customer_id, type, amount, direction, operation_date,
+             description, created_at, updated_at, is_active)
+          SELECT lower(hex(randomblob(16))), id, 'debt', round(total_debt),
+                 'debit', updated_at, 'مانده انتقالی از نسخه قبلی',
+                 updated_at, updated_at, 1
+          FROM customers WHERE total_debt > 0
+        ''');
+          }
+        },
+      );
 
   static QueryExecutor _openConnection() {
-    return driftDatabase(name: 'shop_crm_db');
+    return LazyDatabase(() async {
+      final file = File(await databaseFilePath());
+      return NativeDatabase.createInBackground(file, logStatements: false);
+    });
   }
 }

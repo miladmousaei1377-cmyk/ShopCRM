@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'services/notification_service.dart';
 import 'services/backup_service.dart';
+import 'services/log_service.dart';
+import 'data/local/database.dart';
+import 'data/repositories/local_auth_repository.dart';
+import 'presentation/providers/product_provider.dart';
 
 /// نقطه شروع برنامه
 void main() async {
@@ -24,16 +28,30 @@ void main() async {
     statusBarIconBrightness: Brightness.light,
   ));
 
-  // راه‌اندازی سرویس اعلان‌ها در پس‌زمینه — بدون block کردن startup
-  NotificationService.init().catchError((_) {});
-
-  // بکاپ خودکار هر ۳۰ دقیقه در صورت فعال بودن
-  BackupService.autoBackupIfNeeded().catchError((_) {});
-
-  // ProviderScope: ریشه Riverpod — همه Provider‌ها داخل این زنده می‌مانند
-  runApp(
-    const ProviderScope(
-      child: ShopCrmApp(),
-    ),
-  );
+  final database = AppDatabase();
+  try {
+    await database.customSelect('SELECT 1').getSingle();
+    await LocalAuthRepository(database).ensureDefaultUser();
+    BackupService.configure(database);
+    NotificationService.init().catchError((error, stack) {
+      return LogService.error('راه‌اندازی اعلان‌ها ناموفق بود', error, stack);
+    });
+    BackupService.autoBackupIfNeeded();
+    runApp(ProviderScope(
+      overrides: [databaseProvider.overrideWithValue(database)],
+      child: const ShopCrmApp(),
+    ));
+  } catch (error, stack) {
+    await LogService.error(
+        'بازکردن یا migration دیتابیس ناموفق بود', error, stack);
+    await database.close();
+    runApp(MaterialApp(
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          body: Center(child: Text('خطا در بازکردن پایگاه داده: $error')),
+        ),
+      ),
+    ));
+  }
 }

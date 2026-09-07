@@ -25,8 +25,8 @@ class ProductsDao extends DatabaseAccessor<AppDatabase>
   Stream<List<ProductsTableData>> watchProductsBySearch(String query) {
     final q = '%$query%';
     return (select(productsTable)
-      ..where((t) => t.name.like(q) | t.barcode.like(q))
-      ..where((t) => t.isActive.equals(true)))
+          ..where((t) => t.name.like(q) | t.barcode.like(q))
+          ..where((t) => t.isActive.equals(true)))
         .watch();
   }
 
@@ -37,16 +37,15 @@ class ProductsDao extends DatabaseAccessor<AppDatabase>
 
   /// پیدا کردن با شناسه
   Future<ProductsTableData?> findById(int id) =>
-      (select(productsTable)..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+      (select(productsTable)..where((t) => t.id.equals(id))).getSingleOrNull();
 
   /// محصولاتی که موجودی‌شان به حداقل رسیده (برای داشبورد)
   Future<List<ProductsTableData>> getLowStockProducts() =>
       (select(productsTable)
-        ..where((t) => t.isActive.equals(true))
-        ..where((t) =>
-            t.stockQuantity.isSmallerOrEqualValue(0) |
-            t.stockQuantity.isSmallerThan(t.minStockAlert)))
+            ..where((t) => t.isActive.equals(true))
+            ..where((t) =>
+                t.stockQuantity.isSmallerOrEqualValue(0) |
+                t.stockQuantity.isSmallerThan(t.minStockAlert)))
           .get();
 
   // ─── نوشتن ───────────────────────────────────────────────────
@@ -63,35 +62,51 @@ class ProductsDao extends DatabaseAccessor<AppDatabase>
   Future<void> updateStock(int productId, int newStock) =>
       (update(productsTable)..where((t) => t.id.equals(productId)))
           .write(ProductsTableCompanion(
-            stockQuantity: Value(newStock),
-            updatedAt: Value(DateTime.now()),
-            syncStatus: const Value('pending'), // نیاز به sync
-          ));
+        stockQuantity: Value(newStock),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value('pending'), // نیاز به sync
+      ));
 
   /// حذف نرم (soft delete) — محصول غیرفعال می‌شود، حذف نمی‌شود
   Future<void> deactivateProduct(int id) =>
       (update(productsTable)..where((t) => t.id.equals(id)))
           .write(ProductsTableCompanion(
-            isActive: const Value(false),
-            updatedAt: Value(DateTime.now()),
-            syncStatus: const Value('pending'),
-          ));
+        isActive: const Value(false),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value('pending'),
+      ));
+
+  Future<int> imageReferenceCount(String imagePath) async {
+    final count = productsTable.id.count();
+    final query = selectOnly(productsTable)
+      ..addColumns([count])
+      ..where(productsTable.imageUrl.equals(imagePath) &
+          productsTable.isActive.equals(true));
+    return (await query.getSingle()).read(count) ?? 0;
+  }
+
+  Future<void> clearImage(int id) =>
+      (update(productsTable)..where((t) => t.id.equals(id))).write(
+        ProductsTableCompanion(
+          imageUrl: const Value(null),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
 
   // ─── Sync ─────────────────────────────────────────────────────
 
   /// محصولاتی که هنوز به سرور ارسال نشده‌اند
   Future<List<ProductsTableData>> getPendingProducts() =>
-      (select(productsTable)
-        ..where((t) => t.syncStatus.equals('pending')))
+      (select(productsTable)..where((t) => t.syncStatus.equals('pending')))
           .get();
 
   /// بعد از sync موفق، serverId و وضعیت را ثبت کن
   Future<void> markAsSynced(int id, int serverId) =>
       (update(productsTable)..where((t) => t.id.equals(id)))
           .write(ProductsTableCompanion(
-            serverId: Value(serverId),
-            syncStatus: const Value('synced'),
-          ));
+        serverId: Value(serverId),
+        syncStatus: const Value('synced'),
+      ));
 
   // ─── آمار ────────────────────────────────────────────────────
 

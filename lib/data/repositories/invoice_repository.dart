@@ -3,6 +3,7 @@ import '../../data/local/database.dart';
 import '../../domain/models/invoice.dart';
 import '../../domain/models/invoice_item.dart';
 import '../../domain/models/product.dart';
+import 'ledger_repository.dart';
 
 class InvoiceRepository {
   final AppDatabase _db;
@@ -20,7 +21,8 @@ class InvoiceRepository {
       });
 
   Future<List<Invoice>> getInvoices({int limit = 50, int offset = 0}) async {
-    final rows = await _db.invoicesDao.getInvoices(limit: limit, offset: offset);
+    final rows =
+        await _db.invoicesDao.getInvoices(limit: limit, offset: offset);
     final result = <Invoice>[];
     for (final row in rows) {
       final items = await _db.invoicesDao.getInvoiceItems(row.id);
@@ -86,27 +88,39 @@ class InvoiceRepository {
       syncStatus: Value(invoice.syncStatus.name),
     );
 
-    final itemCompanions = invoice.items.map((item) =>
-      InvoiceItemsTableCompanion(
-        productId: Value(item.productId),
-        productName: Value(item.productName),
-        productBarcode: Value(item.productBarcode),
-        quantity: Value(item.quantity),
-        unitPrice: Value(item.unitPrice),
-        discountPercent: Value(item.discountPercent),
-        subtotal: Value(item.subtotal),
-      ),
-    ).toList();
+    final itemCompanions = invoice.items
+        .map(
+          (item) => InvoiceItemsTableCompanion(
+            productId: Value(item.productId),
+            productName: Value(item.productName),
+            productBarcode: Value(item.productBarcode),
+            quantity: Value(item.quantity),
+            unitPrice: Value(item.unitPrice),
+            discountPercent: Value(item.discountPercent),
+            subtotal: Value(item.subtotal),
+          ),
+        )
+        .toList();
 
-    return await _db.invoicesDao.insertInvoiceWithItems(invoiceCompanion, itemCompanions);
+    return await _db.invoicesDao
+        .insertInvoiceWithItems(invoiceCompanion, itemCompanions);
   }
 
-  Future<void> updateStatus(int id, InvoiceStatus status) =>
-      _db.invoicesDao.updateStatus(id, status.name);
+  Future<void> updateStatus(int id, InvoiceStatus status) async {
+    await _db.transaction(() async {
+      await _db.invoicesDao.updateStatus(id, status.name);
+      if (status == InvoiceStatus.cancelled ||
+          status == InvoiceStatus.refunded) {
+        final ledger = await _db.ledgerDao.activeEntryForInvoice(id);
+        if (ledger != null) await LedgerRepository(_db).voidEntry(ledger.id);
+      }
+    });
+  }
 
   Future<double> getTodaySalesTotal() => _db.invoicesDao.getTodaySalesTotal();
 
-  Invoice _mapToModel(InvoicesTableData row, List<InvoiceItemsTableData> itemRows) {
+  Invoice _mapToModel(
+      InvoicesTableData row, List<InvoiceItemsTableData> itemRows) {
     return Invoice(
       id: row.id,
       serverId: row.serverId,
@@ -114,16 +128,18 @@ class InvoiceRepository {
       customerId: row.customerId,
       customerName: row.customerName,
       userId: row.userId,
-      items: itemRows.map((item) => InvoiceItem(
-        id: item.id,
-        invoiceId: item.invoiceId,
-        productId: item.productId,
-        productName: item.productName,
-        productBarcode: item.productBarcode,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discountPercent: item.discountPercent,
-      )).toList(),
+      items: itemRows
+          .map((item) => InvoiceItem(
+                id: item.id,
+                invoiceId: item.invoiceId,
+                productId: item.productId,
+                productName: item.productName,
+                productBarcode: item.productBarcode,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                discountPercent: item.discountPercent,
+              ))
+          .toList(),
       discount: row.discount,
       isDiscountPercent: row.isDiscountPercent,
       tax: row.tax,
