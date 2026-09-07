@@ -38,13 +38,6 @@ class ApiConstants {
   static const String reportTopProducts = '/reports/top-products';
   static const String dashboardSummary = '/dashboard/summary';
 
-  // پیش‌بینی فروش
-  static const String predictionDaily = '/prediction/daily';
-  static const String predictionStockAlert = '/prediction/stock-alert';
-  static const String predictionTopProducts = '/prediction/top-products';
-  static const String predictionAiAnalysis = '/prediction/ai-analysis';
-  static const String predictionAiStatus = '/prediction/ai-status';
-
   // کلیدهای ذخیره‌سازی
   static const String tokenKey = 'auth_token';
   static const String refreshTokenKey = 'refresh_token';

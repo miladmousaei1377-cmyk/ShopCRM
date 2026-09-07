@@ -29,9 +29,14 @@ class SettingsScreen extends ConsumerWidget {
             // پروفایل فروشگاه
             const _ProfileSection(),
             const Divider(height: 1),
+            _SectionLabel(label: 'حساب کاربری'),
+            const _AccountCredentialsTile(),
+            const Divider(height: 1),
 
             // ─── امنیت (فقط موبایل — اثر انگشت روی ویندوز ندارد) ─────────────
-            if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) ...[
+            if (!Platform.isWindows &&
+                !Platform.isLinux &&
+                !Platform.isMacOS) ...[
               _SectionLabel(label: 'امنیت'),
               const _BiometricTile(),
               const Divider(height: 1),
@@ -46,7 +51,8 @@ class SettingsScreen extends ConsumerWidget {
             _SectionLabel(label: 'سرور'),
             _SettingsTile(
               icon: Icons.cloud_sync,
-              iconColor: syncState.isOnline ? AppColors.success : AppColors.warning,
+              iconColor:
+                  syncState.isOnline ? AppColors.success : AppColors.warning,
               title: 'وضعیت سرور',
               subtitle: syncState.isOnline
                   ? (syncState.lastSyncTime != null
@@ -55,7 +61,8 @@ class SettingsScreen extends ConsumerWidget {
                   : AppStrings.offline,
               trailing: TextButton(
                 onPressed: () => ref.read(syncProvider.notifier).sync(),
-                child: const Text('sync', style: TextStyle(fontFamily: 'Vazirmatn')),
+                child: const Text('sync',
+                    style: TextStyle(fontFamily: 'Vazirmatn')),
               ),
             ),
             const Divider(height: 1),
@@ -116,7 +123,8 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _showServerUrlDialog(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
-    final current = prefs.getString(ApiConstants.baseUrlKey) ?? ApiConstants.defaultBaseUrl;
+    final current =
+        prefs.getString(ApiConstants.baseUrlKey) ?? ApiConstants.defaultBaseUrl;
     final ctrl = TextEditingController(text: current);
 
     if (!context.mounted) return;
@@ -126,13 +134,16 @@ class SettingsScreen extends ConsumerWidget {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: const Text('آدرس سرور',
-              style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+              style: TextStyle(
+                  fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('آدرس کامل API را وارد کنید:',
-                  style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 12,
+                  style: TextStyle(
+                      fontFamily: 'Vazirmatn',
+                      fontSize: 12,
                       color: AppColors.textSecondary)),
               const SizedBox(height: 8),
               TextField(
@@ -140,7 +151,8 @@ class SettingsScreen extends ConsumerWidget {
                 textDirection: TextDirection.ltr,
                 decoration: InputDecoration(
                   hintText: 'http://192.168.1.1:8000/api',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   filled: true,
                   fillColor: AppColors.background,
                 ),
@@ -151,7 +163,8 @@ class SettingsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text(AppStrings.cancel, style: TextStyle(fontFamily: 'Vazirmatn')),
+              child: const Text(AppStrings.cancel,
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -169,12 +182,145 @@ class SettingsScreen extends ConsumerWidget {
                   ));
                 }
               },
-              child: const Text(AppStrings.save, style: TextStyle(fontFamily: 'Vazirmatn')),
+              child: const Text(AppStrings.save,
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _AccountCredentialsTile extends ConsumerWidget {
+  const _AccountCredentialsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => _SettingsTile(
+        icon: Icons.manage_accounts_outlined,
+        title: 'نام کاربری و رمز عبور',
+        subtitle: ref.watch(authProvider).username ?? 'کاربر محلی',
+        onTap: () => showDialog(
+          context: context,
+          builder: (_) => const _CredentialsDialog(),
+        ),
+      );
+}
+
+class _CredentialsDialog extends ConsumerStatefulWidget {
+  const _CredentialsDialog();
+  @override
+  ConsumerState<_CredentialsDialog> createState() => _CredentialsDialogState();
+}
+
+class _CredentialsDialogState extends ConsumerState<_CredentialsDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _username;
+  final _current = TextEditingController();
+  final _next = TextEditingController();
+  final _repeat = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _username =
+        TextEditingController(text: ref.read(authProvider).username ?? '');
+  }
+
+  @override
+  void dispose() {
+    _username.dispose();
+    _current.dispose();
+    _next.dispose();
+    _repeat.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تغییر اطلاعات ورود'),
+          content: SizedBox(
+              width: 420,
+              child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                          controller: _username,
+                          decoration: const InputDecoration(
+                              labelText: 'نام کاربری',
+                              prefixIcon: Icon(Icons.person_outline)),
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? 'نام کاربری الزامی است'
+                              : null),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                          controller: _current,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                              labelText: 'رمز عبور فعلی',
+                              prefixIcon: Icon(Icons.lock_outline)),
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'رمز فعلی الزامی است'
+                              : null),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                          controller: _next,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                              labelText: 'رمز عبور جدید')),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                          controller: _repeat,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                              labelText: 'تکرار رمز عبور جدید'),
+                          validator: (v) =>
+                              _next.text.isNotEmpty && v != _next.text
+                                  ? 'تکرار رمز عبور یکسان نیست'
+                                  : null),
+                      if (_error != null)
+                        Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(_error!,
+                                style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontFamily: 'Vazirmatn'))),
+                    ],
+                  ))),
+          actions: [
+            TextButton(
+                onPressed: _saving ? null : () => Navigator.pop(context),
+                child: const Text('انصراف')),
+            ElevatedButton(
+                onPressed: _saving ? null : _save, child: const Text('ذخیره')),
+          ],
+        ),
+      );
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authProvider.notifier).changeCredentials(
+            username: _username.text.trim(),
+            currentPassword: _current.text,
+            newPassword: _next.text.isEmpty ? null : _next.text,
+          );
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
 
@@ -224,7 +370,11 @@ class _BiometricTileState extends State<_BiometricTile> {
   Future<void> _load() async {
     final available = await BiometricService.isAvailable();
     final enabled = await BiometricService.isEnabled();
-    if (mounted) setState(() { _available = available; _enabled = enabled; });
+    if (mounted)
+      setState(() {
+        _available = available;
+        _enabled = enabled;
+      });
   }
 
   Future<void> _toggle(bool value) async {
@@ -338,7 +488,8 @@ class _BackupSectionState extends State<_BackupSection> {
           subtitle: 'آخرین بکاپ: $_lastBackupLabel',
           trailing: _isLoading
               ? const SizedBox(
-                  width: 24, height: 24,
+                  width: 24,
+                  height: 24,
                   child: CircularProgressIndicator(strokeWidth: 2))
               : TextButton(
                   onPressed: _manualBackup,
@@ -350,10 +501,9 @@ class _BackupSectionState extends State<_BackupSection> {
         _SettingsTile(
           icon: Icons.schedule,
           iconColor: _autoEnabled ? AppColors.success : AppColors.primary,
-          title: 'بکاپ خودکار هفتگی',
-          subtitle: _autoEnabled
-              ? 'هر ۷ روز یک‌بار بکاپ ذخیره می‌شود'
-              : 'غیرفعال',
+          title: 'بکاپ خودکار',
+          subtitle:
+              _autoEnabled ? 'هر ۳۰ دقیقه یک بکاپ ذخیره می‌شود' : 'غیرفعال',
           trailing: Switch(
             value: _autoEnabled,
             onChanged: _toggleAuto,
@@ -411,7 +561,8 @@ class _ProfileSectionState extends State<_ProfileSection> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: const Text('ویرایش پروفایل',
-              style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+              style: TextStyle(
+                  fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -502,27 +653,32 @@ class _ProfileSectionState extends State<_ProfileSection> {
                 children: [
                   Text(displayName,
                       style: const TextStyle(
-                        fontFamily: 'Vazirmatn', fontSize: 16,
-                        fontWeight: FontWeight.w700, color: AppColors.textPrimary,
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
                       )),
                   const SizedBox(height: 2),
                   Text('مدیر: $displayOwner',
                       style: const TextStyle(
-                        fontFamily: 'Vazirmatn', fontSize: 12,
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 12,
                         color: AppColors.textSecondary,
                       )),
                   if (_phone.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(_phone,
                         style: const TextStyle(
-                          fontFamily: 'Vazirmatn', fontSize: 12,
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 12,
                           color: AppColors.textSecondary,
                         )),
                   ],
                 ],
               ),
             ),
-            const Icon(Icons.edit_outlined, color: AppColors.textHint, size: 20),
+            const Icon(Icons.edit_outlined,
+                color: AppColors.textHint, size: 20),
           ],
         ),
       ),
@@ -542,7 +698,16 @@ class _PosSettingsTile extends StatefulWidget {
 class _PosSettingsTileState extends State<_PosSettingsTile> {
   String _posMode = 'manual'; // manual | auto
   String _posPort = 'COM1';
-  final _portOptions = ['COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8'];
+  final _portOptions = [
+    'COM1',
+    'COM2',
+    'COM3',
+    'COM4',
+    'COM5',
+    'COM6',
+    'COM7',
+    'COM8'
+  ];
 
   @override
   void initState() {
@@ -566,7 +731,8 @@ class _PosSettingsTileState extends State<_PosSettingsTile> {
     await prefs.setString('pos_port', _posPort);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('تنظیمات پوز ذخیره شد', style: TextStyle(fontFamily: 'Vazirmatn')),
+        content: Text('تنظیمات پوز ذخیره شد',
+            style: TextStyle(fontFamily: 'Vazirmatn')),
         backgroundColor: AppColors.success,
       ));
     }
@@ -582,56 +748,73 @@ class _PosSettingsTileState extends State<_PosSettingsTile> {
         child: StatefulBuilder(
           builder: (ctx, setSt) => AlertDialog(
             title: const Text('تنظیمات دستگاه پوز',
-                style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+                style: TextStyle(
+                    fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('حالت اتصال پوز:',
-                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                    style: TextStyle(
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 13,
                         color: AppColors.textSecondary)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Radio<String>(
-                      value: 'manual', groupValue: tempMode,
+                      value: 'manual',
+                      groupValue: tempMode,
                       onChanged: (v) => setSt(() => tempMode = v!),
                     ),
                     const Text('دستی (شماره پیگیری)',
-                        style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                        style:
+                            TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
                   ],
                 ),
                 Row(
                   children: [
                     Radio<String>(
-                      value: 'auto', groupValue: tempMode,
+                      value: 'auto',
+                      groupValue: tempMode,
                       onChanged: (v) => setSt(() => tempMode = v!),
                     ),
                     const Text('اتوماتیک (پورت سریال)',
-                        style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                        style:
+                            TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
                   ],
                 ),
                 if (tempMode == 'auto') ...[
                   const SizedBox(height: 12),
                   const Text('پورت سریال پوز:',
-                      style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 13,
+                      style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontSize: 13,
                           color: AppColors.textSecondary)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
                     value: tempPort,
-                    items: _portOptions.map((p) => DropdownMenuItem(
-                      value: p, child: Text(p, style: const TextStyle(fontFamily: 'Vazirmatn'))
-                    )).toList(),
+                    items: _portOptions
+                        .map((p) => DropdownMenuItem(
+                            value: p,
+                            child: Text(p,
+                                style:
+                                    const TextStyle(fontFamily: 'Vazirmatn'))))
+                        .toList(),
                     onChanged: (v) => setSt(() => tempPort = v!),
                     decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'مطمئن شوید دستگاه پوز به پورت مربوطه متصل است.',
-                    style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 11,
+                    style: TextStyle(
+                        fontFamily: 'Vazirmatn',
+                        fontSize: 11,
                         color: AppColors.textHint),
                   ),
                 ],
@@ -640,15 +823,20 @@ class _PosSettingsTileState extends State<_PosSettingsTile> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text(AppStrings.cancel, style: TextStyle(fontFamily: 'Vazirmatn')),
+                child: const Text(AppStrings.cancel,
+                    style: TextStyle(fontFamily: 'Vazirmatn')),
               ),
               ElevatedButton(
                 onPressed: () {
-                  setState(() { _posMode = tempMode; _posPort = tempPort; });
+                  setState(() {
+                    _posMode = tempMode;
+                    _posPort = tempPort;
+                  });
                   _save();
                   Navigator.pop(ctx);
                 },
-                child: const Text(AppStrings.save, style: TextStyle(fontFamily: 'Vazirmatn')),
+                child: const Text(AppStrings.save,
+                    style: TextStyle(fontFamily: 'Vazirmatn')),
               ),
             ],
           ),
@@ -704,17 +892,21 @@ class _SettingsTile extends StatelessWidget {
       ),
       title: Text(title,
           style: TextStyle(
-            fontFamily: 'Vazirmatn', fontSize: 15, fontWeight: FontWeight.w500,
+            fontFamily: 'Vazirmatn',
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
             color: titleColor ?? AppColors.textPrimary,
           )),
       subtitle: subtitle != null
           ? Text(subtitle!,
               style: const TextStyle(
-                fontFamily: 'Vazirmatn', fontSize: 12,
+                fontFamily: 'Vazirmatn',
+                fontSize: 12,
                 color: AppColors.textSecondary,
               ))
           : null,
-      trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_left) : null),
+      trailing:
+          trailing ?? (onTap != null ? const Icon(Icons.chevron_left) : null),
       onTap: onTap,
     );
   }

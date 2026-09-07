@@ -23,7 +23,7 @@ import 'presentation/screens/products/product_form_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/settings/printer_settings_screen.dart';
 import 'presentation/screens/reports/reports_screen.dart';
-import 'presentation/screens/prediction/prediction_screen.dart';
+import 'presentation/screens/accounting/accounting_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -39,14 +39,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),
         routes: [
-          GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
-
-          GoRoute(path: '/invoice/new', builder: (_, __) => const NewInvoiceScreen()),
-          GoRoute(path: '/invoices', builder: (_, __) => const InvoiceListScreen()),
+          GoRoute(
+              path: '/dashboard', builder: (_, __) => const DashboardScreen()),
+          GoRoute(
+              path: '/invoice/new',
+              builder: (_, __) => const NewInvoiceScreen()),
+          GoRoute(
+              path: '/invoices', builder: (_, __) => const InvoiceListScreen()),
           GoRoute(
             path: '/invoices/:id',
             builder: (context, state) {
@@ -54,8 +56,8 @@ final routerProvider = Provider<GoRouter>((ref) {
               return InvoiceDetailScreen(invoiceId: id);
             },
           ),
-
-          GoRoute(path: '/products', builder: (_, __) => const ProductsScreen()),
+          GoRoute(
+              path: '/products', builder: (_, __) => const ProductsScreen()),
           GoRoute(
             path: '/products/new',
             builder: (context, state) {
@@ -70,19 +72,22 @@ final routerProvider = Provider<GoRouter>((ref) {
               return ProductFormScreen(productId: id);
             },
           ),
-
-          GoRoute(path: '/inventory', builder: (_, __) => const InventoryScreen()),
+          GoRoute(
+              path: '/inventory', builder: (_, __) => const InventoryScreen()),
           GoRoute(
             path: '/inventory/adjust',
             builder: (context, state) {
               final productIdStr = state.uri.queryParameters['productId'];
-              final productId = productIdStr != null ? int.tryParse(productIdStr) : null;
+              final productId =
+                  productIdStr != null ? int.tryParse(productIdStr) : null;
               return AdjustStockScreen(productId: productId);
             },
           ),
-
-          GoRoute(path: '/customers', builder: (_, __) => const CustomersScreen()),
-          GoRoute(path: '/customers/new', builder: (_, __) => const CustomerFormScreen()),
+          GoRoute(
+              path: '/customers', builder: (_, __) => const CustomersScreen()),
+          GoRoute(
+              path: '/customers/new',
+              builder: (_, __) => const CustomerFormScreen()),
           GoRoute(
             path: '/customers/:id',
             builder: (context, state) {
@@ -97,11 +102,18 @@ final routerProvider = Provider<GoRouter>((ref) {
               return CustomerFormScreen(customerId: id);
             },
           ),
-
           GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
-          GoRoute(path: '/prediction', builder: (_, __) => const PredictionScreen()),
-          GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
-          GoRoute(path: '/settings/printer', builder: (_, __) => const PrinterSettingsScreen()),
+          GoRoute(
+              path: '/accounting',
+              builder: (_, state) => AccountingScreen(
+                    customerId: int.tryParse(
+                        state.uri.queryParameters['customerId'] ?? ''),
+                  )),
+          GoRoute(
+              path: '/settings', builder: (_, __) => const SettingsScreen()),
+          GoRoute(
+              path: '/settings/printer',
+              builder: (_, __) => const PrinterSettingsScreen()),
         ],
       ),
     ],
@@ -146,45 +158,103 @@ class _AppShell extends StatefulWidget {
 class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   // ─── آیتم‌های دسکتاپ (همه ۹ مسیر) ──────────────────────────────────────
   static const _routes = [
-    '/dashboard', '/invoice/new', '/invoices', '/products',
-    '/inventory', '/customers', '/prediction', '/reports', '/settings',
+    '/dashboard',
+    '/invoice/new',
+    '/invoices',
+    '/products',
+    '/inventory',
+    '/customers',
+    '/accounting',
+    '/reports',
+    '/settings',
   ];
   static const _labels = [
-    AppStrings.dashboard, AppStrings.newInvoice, AppStrings.invoices,
-    AppStrings.products, AppStrings.inventory, AppStrings.customers,
-    'پیش‌بینی', AppStrings.reports, AppStrings.settings,
+    AppStrings.dashboard,
+    AppStrings.newInvoice,
+    AppStrings.invoices,
+    AppStrings.products,
+    AppStrings.inventory,
+    AppStrings.customers,
+    'حسابداری',
+    AppStrings.reports,
+    AppStrings.settings,
   ];
   static const _icons = [
-    Icons.dashboard_outlined, Icons.add_circle_outline, Icons.receipt_long_outlined,
-    Icons.inventory_2_outlined, Icons.warehouse_outlined, Icons.people_outline,
-    Icons.auto_awesome_outlined, Icons.bar_chart_outlined, Icons.settings_outlined,
+    Icons.dashboard_outlined,
+    Icons.add_circle_outline,
+    Icons.receipt_long_outlined,
+    Icons.inventory_2_outlined,
+    Icons.warehouse_outlined,
+    Icons.people_outline,
+    Icons.account_balance_outlined,
+    Icons.bar_chart_outlined,
+    Icons.settings_outlined,
   ];
   static const _selectedIcons = [
-    Icons.dashboard, Icons.add_circle, Icons.receipt_long,
-    Icons.inventory_2, Icons.warehouse, Icons.people,
-    Icons.auto_awesome, Icons.bar_chart, Icons.settings,
+    Icons.dashboard,
+    Icons.add_circle,
+    Icons.receipt_long,
+    Icons.inventory_2,
+    Icons.warehouse,
+    Icons.people,
+    Icons.account_balance,
+    Icons.bar_chart,
+    Icons.settings,
   ];
 
   // ─── آیتم‌های موبایل (۴ مسیر اصلی + «بیشتر») ────────────────────────────
-  static const _mobileRoutes = ['/dashboard', '/invoice/new', '/invoices', '/products'];
+  static const _mobileRoutes = [
+    '/dashboard',
+    '/invoice/new',
+    '/invoices',
+    '/products'
+  ];
   static const _mobileLabels = [
-    AppStrings.dashboard, AppStrings.newInvoice, AppStrings.invoices, AppStrings.products,
+    AppStrings.dashboard,
+    AppStrings.newInvoice,
+    AppStrings.invoices,
+    AppStrings.products,
   ];
   static const _mobileIcons = [
-    Icons.dashboard_outlined, Icons.add_circle_outline,
-    Icons.receipt_long_outlined, Icons.inventory_2_outlined,
+    Icons.dashboard_outlined,
+    Icons.add_circle_outline,
+    Icons.receipt_long_outlined,
+    Icons.inventory_2_outlined,
   ];
   static const _mobileSelectedIcons = [
-    Icons.dashboard, Icons.add_circle, Icons.receipt_long, Icons.inventory_2,
+    Icons.dashboard,
+    Icons.add_circle,
+    Icons.receipt_long,
+    Icons.inventory_2,
   ];
 
   // ─── آیتم‌های «بیشتر» ────────────────────────────────────────────────────
   static const _moreItems = <({String route, String label, IconData icon})>[
-    (route: '/inventory',  label: AppStrings.inventory,  icon: Icons.warehouse_outlined),
-    (route: '/customers',  label: AppStrings.customers,  icon: Icons.people_outline),
-    (route: '/prediction', label: 'پیش‌بینی',            icon: Icons.auto_awesome_outlined),
-    (route: '/reports',    label: AppStrings.reports,    icon: Icons.bar_chart_outlined),
-    (route: '/settings',   label: AppStrings.settings,   icon: Icons.settings_outlined),
+    (
+      route: '/inventory',
+      label: AppStrings.inventory,
+      icon: Icons.warehouse_outlined
+    ),
+    (
+      route: '/customers',
+      label: AppStrings.customers,
+      icon: Icons.people_outline
+    ),
+    (
+      route: '/accounting',
+      label: 'حسابداری',
+      icon: Icons.account_balance_outlined
+    ),
+    (
+      route: '/reports',
+      label: AppStrings.reports,
+      icon: Icons.bar_chart_outlined
+    ),
+    (
+      route: '/settings',
+      label: AppStrings.settings,
+      icon: Icons.settings_outlined
+    ),
   ];
 
   @override
@@ -204,7 +274,10 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
     if (!mounted) return false;
     try {
       final router = GoRouter.of(context);
-      if (router.canPop()) { router.pop(); return true; }
+      if (router.canPop()) {
+        router.pop();
+        return true;
+      }
     } catch (_) {}
     if (!mounted) return false;
     final shouldExit = await _showExitDialog(context);
@@ -212,11 +285,13 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
     return true;
   }
 
-  bool get _isDesktop => Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+  bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   int _mobileIndexFromLocation(String loc) {
     for (int i = 0; i < _mobileRoutes.length; i++) {
-      if (loc == _mobileRoutes[i] || loc.startsWith('${_mobileRoutes[i]}/')) return i;
+      if (loc == _mobileRoutes[i] || loc.startsWith('${_mobileRoutes[i]}/'))
+        return i;
     }
     return 4; // «بیشتر»
   }
@@ -244,7 +319,8 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 margin: const EdgeInsets.only(bottom: 4),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade300,
@@ -252,23 +328,26 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
                 ),
               ),
               ..._moreItems.map((item) => ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(item.icon,
-                      color: Theme.of(context).colorScheme.primary, size: 22),
-                ),
-                title: Text(item.label,
-                    style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 15,
-                        fontWeight: FontWeight.w500)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _navigate(item.route);
-                },
-              )),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(item.icon,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 22),
+                    ),
+                    title: Text(item.label,
+                        style: const TextStyle(
+                            fontFamily: 'Vazirmatn',
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigate(item.route);
+                    },
+                  )),
               const SizedBox(height: 8),
             ],
           ),
@@ -283,13 +362,16 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
           builder: (ctx) => Directionality(
             textDirection: TextDirection.rtl,
             child: AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               title: const Row(
                 children: [
                   Icon(Icons.exit_to_app, color: Colors.red),
                   SizedBox(width: 8),
                   Text('خروج از برنامه',
-                      style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.w700)),
+                      style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontWeight: FontWeight.w700)),
                 ],
               ),
               content: const Text(
@@ -339,7 +421,8 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
                   icon: Icon(_icons[i]),
                   selectedIcon: Icon(_selectedIcons[i]),
                   label: Text(_labels[i],
-                      style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 12)),
+                      style: const TextStyle(
+                          fontFamily: 'Vazirmatn', fontSize: 12)),
                 ),
               ),
               selectedIndex: idx,

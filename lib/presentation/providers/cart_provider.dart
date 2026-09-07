@@ -6,6 +6,8 @@ import '../../domain/models/customer.dart';
 import '../../data/repositories/invoice_repository.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../data/repositories/customer_repository.dart';
+import '../../data/repositories/ledger_repository.dart';
+import '../../data/local/database.dart';
 import 'product_provider.dart';
 
 final invoiceRepositoryProvider = Provider<InvoiceRepository>((ref) {
@@ -18,16 +20,16 @@ final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
 
 /// وضعیت سبد خرید جاری (فاکتور در حال ثبت)
 class CartState {
-  final List<InvoiceItem> items;     // آیتم‌های سبد
-  final Customer? customer;          // مشتری انتخاب‌شده (اختیاری)
-  final double discount;             // مقدار تخفیف
-  final bool isDiscountPercent;      // نوع تخفیف: ریال یا درصد
-  final double tax;                  // درصد مالیات
+  final List<InvoiceItem> items; // آیتم‌های سبد
+  final Customer? customer; // مشتری انتخاب‌شده (اختیاری)
+  final double discount; // مقدار تخفیف
+  final bool isDiscountPercent; // نوع تخفیف: ریال یا درصد
+  final double tax; // درصد مالیات
   final PaymentMethod paymentMethod; // روش پرداخت
-  final bool isSubmitting;           // در حال ثبت فاکتور
-  final String? error;               // پیام خطا
-  final int? lastInvoiceId;          // شناسه فاکتور ثبت‌شده (برای پرینت)
-  final String? posTrackingNumber;   // شماره پیگیری پوز
+  final bool isSubmitting; // در حال ثبت فاکتور
+  final String? error; // پیام خطا
+  final int? lastInvoiceId; // شناسه فاکتور ثبت‌شده (برای پرینت)
+  final String? posTrackingNumber; // شماره پیگیری پوز
 
   const CartState({
     this.items = const [],
@@ -51,12 +53,12 @@ class CartState {
     return discount;
   }
 
-  double get taxAmount  => (totalAmount - discountAmount) * tax / 100;
+  double get taxAmount => (totalAmount - discountAmount) * tax / 100;
   double get finalAmount => totalAmount - discountAmount + taxAmount;
 
   /// تعداد کل اقلام (مجموع quantity)
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
-  bool get isEmpty  => items.isEmpty;
+  bool get isEmpty => items.isEmpty;
 
   CartState copyWith({
     List<InvoiceItem>? items,
@@ -82,7 +84,9 @@ class CartState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       error: error,
       lastInvoiceId: lastInvoiceId ?? this.lastInvoiceId,
-      posTrackingNumber: clearPosTracking ? null : (posTrackingNumber ?? this.posTrackingNumber),
+      posTrackingNumber: clearPosTracking
+          ? null
+          : (posTrackingNumber ?? this.posTrackingNumber),
     );
   }
 }
@@ -91,9 +95,10 @@ class CartState {
 class CartNotifier extends StateNotifier<CartState> {
   final InvoiceRepository _invoiceRepo;
   final ProductRepository _productRepo;
-  final CustomerRepository _customerRepo;
+  final LedgerRepository _ledgerRepo;
+  final AppDatabase _db;
 
-  CartNotifier(this._invoiceRepo, this._productRepo, this._customerRepo)
+  CartNotifier(this._invoiceRepo, this._productRepo, this._ledgerRepo, this._db)
       : super(const CartState());
 
   /// افزودن محصول به سبد
@@ -110,7 +115,10 @@ class CartNotifier extends StateNotifier<CartState> {
     } else {
       // محصول جدید → به انتهای لیست اضافه کن
       state = state.copyWith(
-        items: [...state.items, InvoiceItem.fromProduct(product, quantity: quantity)],
+        items: [
+          ...state.items,
+          InvoiceItem.fromProduct(product, quantity: quantity)
+        ],
       );
     }
   }
@@ -128,9 +136,11 @@ class CartNotifier extends StateNotifier<CartState> {
       removeItem(productId);
       return;
     }
-    final updated = state.items.map((i) =>
-      i.productId == productId ? i.copyWith(quantity: quantity) : i,
-    ).toList();
+    final updated = state.items
+        .map(
+          (i) => i.productId == productId ? i.copyWith(quantity: quantity) : i,
+        )
+        .toList();
     state = state.copyWith(items: updated);
   }
 
@@ -168,8 +178,7 @@ class CartNotifier extends StateNotifier<CartState> {
     );
   }
 
-  void setTax(double tax) =>
-      state = state.copyWith(tax: tax);
+  void setTax(double tax) => state = state.copyWith(tax: tax);
 
   /// ثبت نهایی فاکتور
   /// ترتیب: ۱) ذخیره فاکتور  ۲) کاهش موجودی  ۳) ثبت بدهی نسیه
@@ -197,26 +206,26 @@ class CartNotifier extends StateNotifier<CartState> {
         createdAt: DateTime.now(),
       );
 
-      // ذخیره فاکتور در SQLite
-      final id = await _invoiceRepo.saveInvoice(invoice);
-
-      // کاهش موجودی هر محصول فروخته‌شده
-      for (final item in state.items) {
-        final product = await _productRepo.findById(item.productId);
-        if (product != null) {
-          final newStock = product.stockQuantity - item.quantity;
-          await _productRepo.updateStock(item.productId, newStock.clamp(0, 999999));
+      final id = await _db.transaction(() async {
+        final savedId = await _invoiceRepo.saveInvoice(invoice);
+        for (final item in state.items) {
+          final product = await _productRepo.findById(item.productId);
+          if (product != null) {
+            final newStock = product.stockQuantity - item.quantity;
+            await _productRepo.updateStock(
+                item.productId, newStock.clamp(0, 999999));
+          }
         }
-      }
-
-      // اگه پرداخت نسیه بود، بدهی مشتری را بروز کن
-      if (state.paymentMethod == PaymentMethod.credit && state.customer != null) {
-        final customer = state.customer!;
-        await _customerRepo.updateDebt(
-          customer.id,
-          customer.totalDebt + invoice.finalAmount,
-        );
-      }
+        if (state.paymentMethod == PaymentMethod.credit &&
+            state.customer != null) {
+          await _ledgerRepo.createCreditPurchase(
+            customerId: state.customer!.id,
+            amount: invoice.finalAmount.round(),
+            invoiceId: savedId,
+          );
+        }
+        return savedId;
+      });
 
       state = state.copyWith(isSubmitting: false, lastInvoiceId: id);
       return id;
@@ -249,6 +258,7 @@ final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
   return CartNotifier(
     ref.watch(invoiceRepositoryProvider),
     ref.watch(productRepositoryProvider),
-    ref.watch(customerRepositoryProvider),
+    LedgerRepository(ref.watch(databaseProvider)),
+    ref.watch(databaseProvider),
   );
 });

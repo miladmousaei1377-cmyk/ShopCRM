@@ -1,7 +1,4 @@
-/// سرویس تولید PDF برای فاکتور و گزارش‌های فروش
-/// از پکیج pdf و printing استفاده می‌کند
-/// متون کاملاً فارسی — راست به چپ
-import 'dart:typed_data';
+// سرویس تولید PDF برای فاکتور و گزارش‌های فروش با خروجی فارسی و راست‌به‌چپ.
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -15,13 +12,9 @@ import '../data/repositories/report_repository.dart';
 class PdfService {
   PdfService._();
 
-  static Future<pw.Font?> _loadFont() async {
-    try {
-      final data = await rootBundle.load('assets/fonts/Vazirmatn-Regular.ttf');
-      return pw.Font.ttf(data);
-    } catch (_) {
-      return null;
-    }
+  static Future<pw.Font> _loadFont() async {
+    final data = await rootBundle.load('assets/fonts/Vazirmatn-Regular.ttf');
+    return pw.Font.ttf(data);
   }
 
   // ─── تولید PDF فاکتور ───────────────────────────────────────────────────────
@@ -31,9 +24,12 @@ class PdfService {
     final font = await _loadFont();
 
     final body = pw.TextStyle(font: font, fontSize: 10);
-    final bold = pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold);
-    final title = pw.TextStyle(font: font, fontSize: 16, fontWeight: pw.FontWeight.bold);
-    final sub   = pw.TextStyle(font: font, fontSize: 12, fontWeight: pw.FontWeight.bold);
+    final bold =
+        pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold);
+    final title =
+        pw.TextStyle(font: font, fontSize: 16, fontWeight: pw.FontWeight.bold);
+    final sub =
+        pw.TextStyle(font: font, fontSize: 12, fontWeight: pw.FontWeight.bold);
 
     pdf.addPage(
       pw.Page(
@@ -43,7 +39,9 @@ class PdfService {
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
             // ─── سربرگ ───────────────────────────────────────────────────
-            pw.Center(child: pw.Text(AppStrings.appName, style: title, textDirection: pw.TextDirection.rtl)),
+            pw.Center(
+                child: pw.Text(AppStrings.appName,
+                    style: title, textDirection: pw.TextDirection.rtl)),
             pw.SizedBox(height: 4),
             pw.Divider(color: PdfColors.black, thickness: 1),
             pw.SizedBox(height: 8),
@@ -55,9 +53,11 @@ class PdfService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _rtlText('مشتری: ${invoice.customerName ?? "مشتری عادی"}', body),
+                    _rtlText(
+                        'مشتری: ${invoice.customerName ?? "مشتری عادی"}', body),
                     pw.SizedBox(height: 2),
-                    _rtlText('روش پرداخت: ${invoice.paymentMethod.label}', body),
+                    _rtlText(
+                        'روش پرداخت: ${invoice.paymentMethod.label}', body),
                   ],
                 ),
                 pw.Column(
@@ -65,7 +65,9 @@ class PdfService {
                   children: [
                     _rtlText('شماره فاکتور: ${invoice.invoiceNumber}', bold),
                     pw.SizedBox(height: 2),
-                    _rtlText('تاریخ: ${DateConverter.toShamsi(invoice.createdAt)}', body),
+                    _rtlText(
+                        'تاریخ: ${DateConverter.toShamsi(invoice.createdAt)}',
+                        body),
                   ],
                 ),
               ],
@@ -85,33 +87,41 @@ class PdfService {
     return pdf.save();
   }
 
-  static pw.Widget _buildItemsTable(Invoice invoice, pw.TextStyle body, pw.TextStyle bold) {
+  static pw.Widget _buildItemsTable(
+      Invoice invoice, pw.TextStyle body, pw.TextStyle bold) {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
       columnWidths: {
-        0: const pw.FlexColumnWidth(3),
-        1: const pw.FlexColumnWidth(1),
+        0: const pw.FlexColumnWidth(2),
+        1: const pw.FlexColumnWidth(2),
         2: const pw.FlexColumnWidth(2),
-        3: const pw.FlexColumnWidth(2),
+        3: const pw.FlexColumnWidth(3),
       },
       children: [
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.grey300),
           children: [
-            _tableCell('محصول', bold, align: pw.TextAlign.right),
-            _tableCell('تعداد', bold, align: pw.TextAlign.center),
-            _tableCell('قیمت واحد', bold, align: pw.TextAlign.center),
             _tableCell('جمع جزء', bold, align: pw.TextAlign.center),
+            _tableCell('قیمت واحد', bold, align: pw.TextAlign.center),
+            _tableCell('تعداد', bold, align: pw.TextAlign.center),
+            _tableCell('محصول', bold, align: pw.TextAlign.right),
           ],
         ),
         ...invoice.items.map((item) => pw.TableRow(
-          children: [
-            _tableCell(item.productName, body, align: pw.TextAlign.right),
-            _tableCell('${item.quantity}', body, align: pw.TextAlign.center),
-            _tableCell('${CurrencyFormatter.formatNumber(item.unitPrice.toInt())} ت', body, align: pw.TextAlign.center),
-            _tableCell('${CurrencyFormatter.formatNumber(item.subtotal.toInt())} ت', body, align: pw.TextAlign.center),
-          ],
-        )),
+              children: [
+                _tableCell(
+                    '${CurrencyFormatter.formatNumber(item.subtotal.toInt())} تومان',
+                    body,
+                    align: pw.TextAlign.center),
+                _tableCell(
+                    '${CurrencyFormatter.formatNumber(item.unitPrice.toInt())} تومان',
+                    body,
+                    align: pw.TextAlign.center),
+                _tableCell('${item.quantity}', body,
+                    align: pw.TextAlign.center),
+                _tableCell(item.productName, body, align: pw.TextAlign.right),
+              ],
+            )),
       ],
     );
   }
@@ -120,7 +130,8 @@ class PdfService {
       {pw.TextAlign align = pw.TextAlign.right}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      child: pw.Text(text, style: style, textAlign: align),
+      child: pw.Text(text,
+          style: style, textAlign: align, textDirection: pw.TextDirection.rtl),
     );
   }
 
@@ -135,13 +146,25 @@ class PdfService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
         children: [
-          _summaryRow('جمع کل:', '${CurrencyFormatter.formatNumber(invoice.totalAmount.toInt())} تومان', body),
+          _summaryRow(
+              'جمع کل:',
+              '${CurrencyFormatter.formatNumber(invoice.totalAmount.toInt())} تومان',
+              body),
           if (invoice.discountAmount > 0)
-            _summaryRow('تخفیف:', '${CurrencyFormatter.formatNumber(invoice.discountAmount.toInt())} تومان', body),
+            _summaryRow(
+                'تخفیف:',
+                '${CurrencyFormatter.formatNumber(invoice.discountAmount.toInt())} تومان',
+                body),
           if (invoice.taxAmount > 0)
-            _summaryRow('مالیات:', '${CurrencyFormatter.formatNumber(invoice.taxAmount.toInt())} تومان', body),
+            _summaryRow(
+                'مالیات:',
+                '${CurrencyFormatter.formatNumber(invoice.taxAmount.toInt())} تومان',
+                body),
           pw.Divider(color: PdfColors.black),
-          _summaryRow('مبلغ نهایی:', '${CurrencyFormatter.formatNumber(invoice.finalAmount.toInt())} تومان', sub),
+          _summaryRow(
+              'مبلغ نهایی:',
+              '${CurrencyFormatter.formatNumber(invoice.finalAmount.toInt())} تومان',
+              sub),
           pw.SizedBox(height: 8),
           pw.Center(child: _rtlText(AppStrings.receiptThankYou, body)),
         ],
@@ -155,7 +178,7 @@ class PdfService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(value, style: style),
+          pw.Text(value, style: style, textDirection: pw.TextDirection.rtl),
           _rtlText(label, style),
         ],
       ),
@@ -163,7 +186,10 @@ class PdfService {
   }
 
   static pw.Widget _rtlText(String text, pw.TextStyle style) {
-    return pw.Text(text, style: style, textAlign: pw.TextAlign.right);
+    return pw.Text(text,
+        style: style,
+        textAlign: pw.TextAlign.right,
+        textDirection: pw.TextDirection.rtl);
   }
 
   // ─── تولید PDF گزارش فروش ──────────────────────────────────────────────────
@@ -173,9 +199,11 @@ class PdfService {
     final pdf = pw.Document();
     final font = await _loadFont();
 
-    final body   = pw.TextStyle(font: font, fontSize: 10);
-    final bold   = pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold);
-    final header = pw.TextStyle(font: font, fontSize: 14, fontWeight: pw.FontWeight.bold);
+    final body = pw.TextStyle(font: font, fontSize: 10);
+    final bold =
+        pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold);
+    final header =
+        pw.TextStyle(font: font, fontSize: 14, fontWeight: pw.FontWeight.bold);
 
     pdf.addPage(
       pw.Page(
@@ -189,7 +217,9 @@ class PdfService {
               child: _rtlText('${AppStrings.appName} - گزارش فروش', header),
             ),
             pw.SizedBox(height: 8),
-            _rtlText('بازه زمانی: ${DateConverter.toShamsi(from)} تا ${DateConverter.toShamsi(to)}', body),
+            _rtlText(
+                'بازه زمانی: ${DateConverter.toShamsi(from)} تا ${DateConverter.toShamsi(to)}',
+                body),
             pw.SizedBox(height: 16),
 
             // خلاصه آمار
@@ -199,7 +229,9 @@ class PdfService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('${report.totalInvoices} فاکتور', style: body),
-                _rtlText('جمع فروش: ${CurrencyFormatter.formatNumber(report.totalSales.toInt())} تومان', body),
+                _rtlText(
+                    'جمع فروش: ${CurrencyFormatter.formatNumber(report.totalSales.toInt())} تومان',
+                    body),
               ],
             ),
             pw.SizedBox(height: 16),
@@ -210,26 +242,33 @@ class PdfService {
             pw.Table(
               border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
               columnWidths: {
-                0: const pw.FlexColumnWidth(3),
+                0: const pw.FlexColumnWidth(2),
                 1: const pw.FlexColumnWidth(1),
-                2: const pw.FlexColumnWidth(2),
+                2: const pw.FlexColumnWidth(3),
               },
               children: [
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: PdfColors.grey300),
                   children: [
-                    _tableCell('محصول', bold, align: pw.TextAlign.right),
+                    _tableCell('درآمد (تومان)', bold,
+                        align: pw.TextAlign.center),
                     _tableCell('تعداد', bold, align: pw.TextAlign.center),
-                    _tableCell('درآمد (تومان)', bold, align: pw.TextAlign.center),
+                    _tableCell('محصول', bold, align: pw.TextAlign.right),
                   ],
                 ),
                 ...report.topProducts.map((p) => pw.TableRow(
-                  children: [
-                    _tableCell(p.productName, body, align: pw.TextAlign.right),
-                    _tableCell('${p.totalQuantity}', body, align: pw.TextAlign.center),
-                    _tableCell(CurrencyFormatter.formatNumber(p.totalRevenue.toInt()), body, align: pw.TextAlign.center),
-                  ],
-                )),
+                      children: [
+                        _tableCell(
+                            CurrencyFormatter.formatNumber(
+                                p.totalRevenue.toInt()),
+                            body,
+                            align: pw.TextAlign.center),
+                        _tableCell('${p.totalQuantity}', body,
+                            align: pw.TextAlign.center),
+                        _tableCell(p.productName, body,
+                            align: pw.TextAlign.right),
+                      ],
+                    )),
               ],
             ),
           ],
@@ -258,7 +297,7 @@ class PdfService {
     final bytes = await buildSalesReportPdf(report, from, to);
     await savePdf(
       bytes,
-      'گزارش_فروش_${from.year}${from.month.toString().padLeft(2, '0')}${from.day.toString().padLeft(2, '0')}',
+      'گزارش_فروش_${DateConverter.toShamsi(from).replaceAll('/', '-')}',
     );
   }
 }

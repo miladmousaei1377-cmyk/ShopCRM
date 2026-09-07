@@ -1,6 +1,7 @@
-/// سرویس خروجی Excel برای گزارش‌های فروش و فاکتورها
-/// از پکیج excel و share_plus استفاده می‌کند
+// سرویس خروجی Excel برای گزارش‌های فروش و فاکتورها.
 import 'dart:io';
+import 'dart:convert';
+import 'package:archive/archive.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -18,21 +19,25 @@ class ExcelService {
   /// تولید فایل Excel گزارش فروش
   /// شیت ۱: فروش روزانه (تاریخ، مبلغ فروش)
   /// شیت ۲: پرفروش‌ترین محصولات (نام، تعداد، درآمد)
-  static Future<void> exportSalesReport(SalesReport report) async {
+  static Excel buildSalesReportWorkbook(SalesReport report) {
     // ایجاد کتاب Excel جدید
     final excel = Excel.createExcel();
 
     // ─── شیت ۱: فروش روزانه ─────────────────────────────────────────────────
     final dailySheet = excel['فروش روزانه'];
+    dailySheet.isRTL = true;
     // حذف شیت پیش‌فرض Sheet1
     excel.delete('Sheet1');
 
     // هدر ستون‌های شیت فروش روزانه
-    _addRow(dailySheet, [
-      'تاریخ',
-      'مبلغ فروش (تومان)',
-      'تعداد فاکتور',
-    ], isHeader: true);
+    _addRow(
+        dailySheet,
+        [
+          'تاریخ',
+          'مبلغ فروش (تومان)',
+          'تعداد فاکتور',
+        ],
+        isHeader: true);
 
     // داده‌های روزانه — مرتب‌شده بر اساس تاریخ
     final sortedDailySales = report.dailySales.entries.toList()
@@ -43,64 +48,85 @@ class ExcelService {
       final shamsiDate = _convertDateKey(entry.key);
       _addRow(dailySheet, [
         shamsiDate,
-        entry.value.toStringAsFixed(0),
+        CurrencyFormatter.formatNumber(entry.value),
         '', // تعداد فاکتور در این نسخه محاسبه نمی‌شود
       ]);
     }
 
     // اضافه کردن ردیف جمع کل در انتها
-    _addRow(dailySheet, [
-      'جمع کل',
-      report.totalSales.toStringAsFixed(0),
-      report.totalInvoices.toString(),
-    ], isHeader: true);
+    _addRow(
+        dailySheet,
+        [
+          'جمع کل',
+          CurrencyFormatter.formatNumber(report.totalSales),
+          CurrencyFormatter.formatNumber(report.totalInvoices),
+        ],
+        isHeader: true);
 
     // ─── شیت ۲: پرفروش‌ترین محصولات ─────────────────────────────────────────
     final topSheet = excel['پرفروش‌ترین محصولات'];
+    topSheet.isRTL = true;
 
     // هدر ستون‌های شیت محصولات
-    _addRow(topSheet, [
-      'نام محصول',
-      'تعداد فروش',
-      'درآمد (تومان)',
-    ], isHeader: true);
+    _addRow(
+        topSheet,
+        [
+          'نام محصول',
+          'تعداد فروش',
+          'درآمد (تومان)',
+        ],
+        isHeader: true);
 
     // داده‌های پرفروش‌ترین محصولات — از قبل مرتب‌شده
     for (final product in report.topProducts) {
       _addRow(topSheet, [
         product.productName,
-        product.totalQuantity.toString(),
-        product.totalRevenue.toStringAsFixed(0),
+        CurrencyFormatter.formatNumber(product.totalQuantity),
+        CurrencyFormatter.formatNumber(product.totalRevenue),
       ]);
     }
 
-    // ذخیره و اشتراک‌گذاری فایل Excel
-    await _saveAndShare(excel, 'گزارش_فروش_${_today()}');
+    return excel;
+  }
+
+  static List<int> buildSalesReportBytes(SalesReport report) {
+    return _encodeRtl(buildSalesReportWorkbook(report));
+  }
+
+  static Future<void> exportSalesReport(SalesReport report) async {
+    await _saveAndShare(
+      buildSalesReportWorkbook(report),
+      'گزارش_فروش_${_today()}',
+    );
   }
 
   // ─── خروجی Excel لیست فاکتورها ──────────────────────────────────────────────
 
   /// تولید فایل Excel از لیست فاکتورها
   /// یک ردیف به ازای هر فاکتور: شماره، تاریخ، مشتری، مبلغ، روش پرداخت
-  static Future<void> exportInvoices(List<Invoice> invoices) async {
+  static Excel buildInvoicesWorkbook(List<Invoice> invoices) {
     final excel = Excel.createExcel();
 
     // شیت فاکتورها
     final sheet = excel['فاکتورها'];
+    sheet.isRTL = true;
     excel.delete('Sheet1');
 
     // هدر ستون‌ها
-    _addRow(sheet, [
-      'شماره فاکتور',
-      'تاریخ',
-      'نام مشتری',
-      'جمع کل (تومان)',
-      'تخفیف (تومان)',
-      'مالیات (تومان)',
-      'مبلغ نهایی (تومان)',
-      'روش پرداخت',
-      'وضعیت',
-    ], isHeader: true);
+    _addRow(
+        sheet,
+        [
+          'شماره فاکتور',
+          'تاریخ',
+          'نام مشتری',
+          'جمع کل (تومان)',
+          'تخفیف (تومان)',
+          'مالیات (تومان)',
+          'مبلغ نهایی (تومان)',
+          'روش پرداخت',
+          'وضعیت',
+        ],
+        isHeader: true);
 
     // ردیف‌های فاکتورها
     for (final invoice in invoices) {
@@ -108,10 +134,10 @@ class ExcelService {
         invoice.invoiceNumber,
         DateConverter.toShamsi(invoice.createdAt),
         invoice.customerName ?? 'مشتری ناشناس',
-        invoice.totalAmount.toStringAsFixed(0),
-        invoice.discountAmount.toStringAsFixed(0),
-        invoice.taxAmount.toStringAsFixed(0),
-        invoice.finalAmount.toStringAsFixed(0),
+        CurrencyFormatter.formatNumber(invoice.totalAmount),
+        CurrencyFormatter.formatNumber(invoice.discountAmount),
+        CurrencyFormatter.formatNumber(invoice.taxAmount),
+        CurrencyFormatter.formatNumber(invoice.finalAmount),
         invoice.paymentMethod.label,
         invoice.status.label,
       ]);
@@ -120,20 +146,31 @@ class ExcelService {
     // ردیف جمع کل مبلغ نهایی
     final totalFinal =
         invoices.fold<double>(0, (sum, inv) => sum + inv.finalAmount);
-    _addRow(sheet, [
-      'جمع کل',
-      '',
-      '',
-      '',
-      '',
-      '',
-      totalFinal.toStringAsFixed(0),
-      '',
-      '',
-    ], isHeader: true);
+    _addRow(
+        sheet,
+        [
+          'جمع کل',
+          '',
+          '',
+          '',
+          '',
+          '',
+          CurrencyFormatter.formatNumber(totalFinal),
+          '',
+          '',
+        ],
+        isHeader: true);
 
-    // ذخیره و اشتراک‌گذاری
-    await _saveAndShare(excel, 'فاکتورها_${_today()}');
+    return excel;
+  }
+
+  static List<int> buildInvoicesBytes(List<Invoice> invoices) {
+    return _encodeRtl(buildInvoicesWorkbook(invoices));
+  }
+
+  static Future<void> exportInvoices(List<Invoice> invoices) async {
+    await _saveAndShare(
+        buildInvoicesWorkbook(invoices), 'فاکتورها_${_today()}');
   }
 
   // ─── توابع کمکی ────────────────────────────────────────────────────────────
@@ -147,38 +184,40 @@ class ExcelService {
   }) {
     final rowIndex = sheet.maxRows;
     for (int col = 0; col < values.length; col++) {
-      final cell = sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex));
+      final cell = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex));
       cell.value = TextCellValue(values[col]);
-      // استایل برای هدر
-      if (isHeader) {
-        cell.cellStyle = CellStyle(bold: true);
-      }
+      cell.cellStyle = CellStyle(
+        bold: isHeader,
+        horizontalAlign: HorizontalAlign.Right,
+        verticalAlign: VerticalAlign.Top,
+        textWrapping: TextWrapping.WrapText,
+      );
     }
   }
 
   /// ذخیره فایل Excel در مسیر موقت و اشتراک‌گذاری با share_plus
-  static Future<void> _saveAndShare(
-      Excel excel, String filename) async {
+  static Future<void> _saveAndShare(Excel excel, String filename) async {
     try {
       // دریافت مسیر ذخیره‌سازی موقت
       final dir = await getTemporaryDirectory();
       final filePath = '${dir.path}/$filename.xlsx';
 
       // نوشتن بایت‌های Excel به فایل
-      final bytes = excel.save();
-      if (bytes == null) {
-        throw Exception('خطا در تولید فایل Excel');
-      }
+      final bytes = _encodeRtl(excel);
 
       final file = File(filePath);
       await file.writeAsBytes(bytes);
 
       // اشتراک‌گذاری فایل از طریق share_plus
-      await Share.shareXFiles(
-        [XFile(filePath, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
-        text: 'فایل Excel از فروشگاه هوشمند',
-      );
+      await SharePlus.instance.share(ShareParams(
+        files: [
+          XFile(filePath,
+              mimeType:
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        ],
+        text: 'فایل صفحه‌گسترده فروشگاه هوشمند',
+      ));
     } catch (e) {
       debugPrint('[ExcelService] خطا در ذخیره/اشتراک: $e');
       rethrow;
@@ -203,6 +242,26 @@ class ExcelService {
   /// تاریخ امروز برای نام فایل (بدون کاراکترهای ویژه)
   static String _today() {
     final now = DateTime.now();
-    return '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+    return DateConverter.toShamsi(now).replaceAll('/', '-');
+  }
+
+  static List<int> _encodeRtl(Excel excel) {
+    final source = excel.save();
+    if (source == null) throw StateError('خطا در تولید فایل Excel');
+    final input = ZipDecoder().decodeBytes(source);
+    final output = Archive();
+    for (final entry in input.files) {
+      var content = entry.content as List<int>;
+      if (entry.name.startsWith('xl/worksheets/sheet') &&
+          entry.name.endsWith('.xml')) {
+        final xml = utf8.decode(content).replaceAll(
+              '<sheetView workbookViewId="0"/>',
+              '<sheetView rightToLeft="1" workbookViewId="0"/>',
+            );
+        content = utf8.encode(xml);
+      }
+      output.addFile(ArchiveFile(entry.name, content.length, content));
+    }
+    return ZipEncoder().encode(output)!;
   }
 }

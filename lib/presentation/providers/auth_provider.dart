@@ -1,112 +1,157 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/constants/api_constants.dart';
-import '../../core/network/dio_client.dart';
+import '../../data/repositories/local_auth_repository.dart';
+import '../../services/log_service.dart';
+import 'product_provider.dart';
 
 class AuthState {
   final bool isLoggedIn;
   final bool isLoading;
+  final bool isInitialized;
   final String? error;
   final String? username;
+  final int? userId;
 
   const AuthState({
     this.isLoggedIn = false,
     this.isLoading = false,
+    this.isInitialized = false,
     this.error,
     this.username,
+    this.userId,
   });
 
   AuthState copyWith({
     bool? isLoggedIn,
     bool? isLoading,
+    bool? isInitialized,
     String? error,
     String? username,
-  }) {
-    return AuthState(
-      isLoggedIn: isLoggedIn ?? this.isLoggedIn,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      username: username ?? this.username,
-    );
-  }
+    int? userId,
+  }) =>
+      AuthState(
+        isLoggedIn: isLoggedIn ?? this.isLoggedIn,
+        isLoading: isLoading ?? this.isLoading,
+        isInitialized: isInitialized ?? this.isInitialized,
+        error: error,
+        username: username ?? this.username,
+        userId: userId ?? this.userId,
+      );
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
+  static const _sessionKey = 'local_session_token';
   final FlutterSecureStorage _secureStorage;
+  final LocalAuthRepository _repository;
+  String? _sessionToken;
 
-  AuthNotifier(this._secureStorage) : super(const AuthState()) {
-    _checkToken();
+  AuthNotifier(this._secureStorage, this._repository)
+      : super(const AuthState()) {
+    _restoreSession();
   }
 
-  Future<void> _checkToken() async {
-    // Don't auto-login — user must authenticate explicitly each launch
-    // Token is kept for biometric/quick-login use
+  Future<void> _restoreSession() async {
+    try {
+      final token = await _secureStorage.read(key: _sessionKey);
+      if (token != null) {
+        final session = await _repository.resumeSession(token);
+        if (session != null) {
+          _sessionToken = token;
+          state = AuthState(
+            isLoggedIn: true,
+            isInitialized: true,
+            username: session.username,
+            userId: session.userId,
+          );
+          return;
+        }
+        await _secureStorage.delete(key: _sessionKey);
+      }
+    } catch (error, stack) {
+      await LogService.error('بازیابی session محلی ناموفق بود', error, stack);
+    }
+    state = state.copyWith(isInitialized: true);
   }
 
-  Future<bool> hasStoredToken() async {
-    final token = await _secureStorage.read(key: ApiConstants.tokenKey);
-    return token != null;
-  }
+  Future<bool> hasStoredToken() async =>
+      await _secureStorage.read(key: _sessionKey) != null;
 
-  Future<bool> login(String username, String password) async {
-    if (username.isEmpty || password.isEmpty) {
-      state = state.copyWith(isLoading: false, error: 'نام کاربری و رمز عبور الزامی است');
+  Future<bool> login(String username, String password,
+      {bool remember = true}) async {
+    if (username.trim().isEmpty || password.isEmpty) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'نام کاربری و رمز عبور الزامی است',
+      );
       return false;
     }
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final dio = await DioClient.getInstance();
-      final response = await dio.post(
-        ApiConstants.login,
-        data: {'username': username, 'password': password},
-      );
-      final token = response.data['access_token'] as String;
-      final refresh = response.data['refresh_token'] as String?;
-      await _secureStorage.write(key: ApiConstants.tokenKey, value: token);
-      if (refresh != null) {
-        await _secureStorage.write(key: ApiConstants.refreshTokenKey, value: refresh);
-      }
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(ApiConstants.userKey, username);
-      state = state.copyWith(isLoggedIn: true, isLoading: false, username: username);
-      return true;
-    } on DioException catch (e) {
-      final statusCode = e.response?.statusCode;
-      if (statusCode == 401 || statusCode == 422) {
-        state = state.copyWith(isLoading: false, error: 'نام کاربری یا رمز عبور اشتباه است');
+      final session = await _repository.authenticate(username, password);
+      if (session == null) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'نام کاربری یا رمز عبور اشتباه است',
+        );
         return false;
       }
-      // سرور در دسترس نیست — حالت آفلاین (فقط برای توسعه)
-      await _secureStorage.write(
-        key: ApiConstants.tokenKey,
-        value: 'offline_${DateTime.now().millisecondsSinceEpoch}',
+      _sessionToken = session.token;
+      if (remember) {
+        await _secureStorage.write(key: _sessionKey, value: session.token);
+      } else {
+        await _secureStorage.delete(key: _sessionKey);
+      }
+      state = AuthState(
+        isLoggedIn: true,
+        isInitialized: true,
+        username: session.username,
+        userId: session.userId,
       );
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(ApiConstants.userKey, username);
-      state = state.copyWith(isLoggedIn: true, isLoading: false, username: username);
       return true;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'خطا در ورود به سیستم');
+    } catch (error, stack) {
+      await LogService.error('ورود محلی ناموفق بود', error, stack);
+      state = state.copyWith(isLoading: false, error: 'خطا در ورود محلی');
       return false;
     }
   }
 
-  // ورود با اثر انگشت: فقط وجود توکن ذخیره‌شده را بررسی می‌کند
   Future<bool> loginWithBiometric() async {
-    final token = await _secureStorage.read(key: ApiConstants.tokenKey);
+    final token = await _secureStorage.read(key: _sessionKey);
     if (token == null) return false;
-    final prefs = await SharedPreferences.getInstance();
-    final username = prefs.getString(ApiConstants.userKey) ?? '';
-    state = state.copyWith(isLoggedIn: true, username: username);
+    final session = await _repository.resumeSession(token);
+    if (session == null) return false;
+    _sessionToken = token;
+    state = AuthState(
+      isLoggedIn: true,
+      isInitialized: true,
+      username: session.username,
+      userId: session.userId,
+    );
     return true;
   }
 
+  Future<void> changeCredentials({
+    required String username,
+    required String currentPassword,
+    String? newPassword,
+  }) async {
+    final id = state.userId;
+    if (id == null) throw const AuthException('کاربر وارد نشده است');
+    await _repository.changeCredentials(
+      userId: id,
+      username: username,
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    state = state.copyWith(username: username.trim());
+  }
+
   Future<void> logout() async {
-    await _secureStorage.delete(key: ApiConstants.tokenKey);
-    await _secureStorage.delete(key: ApiConstants.refreshTokenKey);
-    state = const AuthState();
+    final token = _sessionToken ?? await _secureStorage.read(key: _sessionKey);
+    if (token != null) await _repository.revokeSession(token);
+    await _secureStorage.delete(key: _sessionKey);
+    _sessionToken = null;
+    state = const AuthState(isInitialized: true);
   }
 }
 
@@ -114,6 +159,13 @@ final secureStorageProvider = Provider<FlutterSecureStorage>(
   (_) => const FlutterSecureStorage(),
 );
 
+final localAuthRepositoryProvider = Provider<LocalAuthRepository>(
+  (ref) => LocalAuthRepository(ref.watch(databaseProvider)),
+);
+
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(ref.watch(secureStorageProvider));
+  return AuthNotifier(
+    ref.watch(secureStorageProvider),
+    ref.watch(localAuthRepositoryProvider),
+  );
 });
