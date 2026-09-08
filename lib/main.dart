@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'services/notification_service.dart';
 import 'services/backup_service.dart';
@@ -13,6 +15,11 @@ import 'presentation/providers/product_provider.dart';
 void main() async {
   // اطمینان از آماده بودن Flutter binding قبل از هر کار async
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isWindows) {
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+  }
 
   // پشتیبانی از هر دو جهت نمایش (portrait + landscape)
   SystemChrome.setPreferredOrientations([

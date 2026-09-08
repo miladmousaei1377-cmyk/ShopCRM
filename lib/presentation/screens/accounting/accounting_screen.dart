@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:persian_datetime_picker/persian_datetime_picker.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_converter.dart';
 import '../../../domain/models/customer.dart';
 import '../../../domain/models/ledger_entry.dart';
+import '../../../services/excel_service.dart';
+import '../../../services/pdf_service.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/ledger_provider.dart';
 import '../../widgets/common/confirm_dialog.dart';
@@ -47,6 +50,7 @@ class _AccountingScreenState extends ConsumerState<AccountingScreen> {
   Widget build(BuildContext context) {
     final entries = ref.watch(ledgerEntriesProvider);
     final filter = ref.watch(ledgerFilterProvider);
+    final loadedEntries = entries.value ?? const <LedgerEntry>[];
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -164,6 +168,22 @@ class _AccountingScreenState extends ConsumerState<AccountingScreen> {
                           _setFilter(const LedgerFilter());
                         },
                         child: const Text('پاک‌کردن فیلترها')),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: loadedEntries.isEmpty
+                        ? null
+                        : () => _exportExcel(loadedEntries),
+                    icon: const Icon(Icons.table_view_outlined, size: 18),
+                    label: const Text('Excel'),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: loadedEntries.isEmpty
+                        ? null
+                        : () => _exportPdf(loadedEntries),
+                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                    label: const Text('PDF'),
+                  ),
                 ]),
               ),
             ]),
@@ -176,7 +196,12 @@ class _AccountingScreenState extends ConsumerState<AccountingScreen> {
                 Center(child: Text('خطا در بارگذاری دفتر حساب: $error')),
             data: (items) => items.isEmpty
                 ? const Center(child: Text('سندی ثبت نشده است'))
-                : _entriesTable(items),
+                : LayoutBuilder(
+                    builder: (context, constraints) =>
+                        constraints.maxWidth < 760
+                            ? _entriesCards(items)
+                            : _entriesTable(items),
+                  ),
           )),
         ]),
         floatingActionButton: FloatingActionButton.extended(
@@ -231,19 +256,24 @@ class _AccountingScreenState extends ConsumerState<AccountingScreen> {
                                 ? null
                                 : () =>
                                     context.go('/invoices/${entry.invoiceId}')),
-                        DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
-                          IconButton(
+                        DataCell(Wrap(spacing: 2, children: [
+                          _actionButton(
                               icon: const Icon(Icons.visibility_outlined),
                               tooltip: 'جزئیات',
                               onPressed: () => _showDetails(entry)),
-                          if (entry.invoiceId == null && entry.isActive)
-                            IconButton(
-                                icon: const Icon(Icons.edit_outlined),
-                                tooltip: 'ویرایش',
-                                onPressed: () =>
-                                    _openEntryDialog(entry: entry)),
+                          _actionButton(
+                              icon: const Icon(Icons.edit_outlined),
+                              tooltip: entry.invoiceId == null
+                                  ? 'ویرایش'
+                                  : 'مشاهده فاکتور مرتبط',
+                              onPressed: !entry.isActive
+                                  ? null
+                                  : entry.invoiceId == null
+                                      ? () => _openEntryDialog(entry: entry)
+                                      : () => context
+                                          .go('/invoices/${entry.invoiceId}')),
                           if (entry.isActive)
-                            IconButton(
+                            _actionButton(
                                 icon: Icon(entry.invoiceId == null
                                     ? Icons.delete_outline
                                     : Icons.cancel_outlined),
@@ -258,11 +288,107 @@ class _AccountingScreenState extends ConsumerState<AccountingScreen> {
         ),
       );
 
+  Widget _actionButton({
+    required Widget icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) =>
+      IconButton(
+        icon: icon,
+        tooltip: tooltip,
+        onPressed: onPressed,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        padding: const EdgeInsets.all(6),
+      );
+
+  Widget _entriesCards(List<LedgerEntry> entries) => ListView.separated(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
+        itemCount: entries.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final entry = entries[index];
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Expanded(
+                      child: Text(entry.customerName,
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                    Text(DateConverter.toShamsi(entry.operationDate)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text('${entry.type.label}${entry.isActive ? '' : ' (باطل)'}'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'بدهکار: ${entry.direction == LedgerDirection.debit ? CurrencyFormatter.format(entry.amount.toDouble()) : '-'}',
+                  ),
+                  Text(
+                    'بستانکار: ${entry.direction == LedgerDirection.credit ? CurrencyFormatter.format(entry.amount.toDouble()) : '-'}',
+                  ),
+                  Text(
+                    'مانده: ${CurrencyFormatter.format(entry.balanceAfter.toDouble())}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  if (entry.invoiceNumber != null)
+                    Text('شماره فاکتور: ${entry.invoiceNumber}'),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(spacing: 4, children: [
+                      _actionButton(
+                        icon: const Icon(Icons.visibility_outlined),
+                        tooltip: 'جزئیات',
+                        onPressed: () => _showDetails(entry),
+                      ),
+                      _actionButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        tooltip: entry.invoiceId == null
+                            ? 'ویرایش'
+                            : 'مشاهده فاکتور مرتبط',
+                        onPressed: !entry.isActive
+                            ? null
+                            : entry.invoiceId == null
+                                ? () => _openEntryDialog(entry: entry)
+                                : () =>
+                                    context.go('/invoices/${entry.invoiceId}'),
+                      ),
+                      if (entry.isActive)
+                        _actionButton(
+                          icon: Icon(entry.invoiceId == null
+                              ? Icons.delete_outline
+                              : Icons.cancel_outlined),
+                          tooltip: entry.invoiceId == null ? 'حذف' : 'ابطال',
+                          onPressed: () => _remove(entry),
+                        ),
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
   Widget _filterChip(String label, bool selected, VoidCallback onTap) =>
       Padding(
         padding: const EdgeInsets.only(left: 6),
         child: FilterChip(
-            label: Text(label), selected: selected, onSelected: (_) => onTap()),
+          label: Text(label),
+          selected: selected,
+          labelStyle: TextStyle(
+            color: selected ? AppColors.primary : AppColors.textPrimary,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          ),
+          selectedColor: AppColors.primary.withValues(alpha: .14),
+          checkmarkColor: AppColors.primary,
+          side: BorderSide(
+              color: selected ? AppColors.primary : AppColors.border),
+          onSelected: (_) => onTap(),
+        ),
       );
 
   void _setFilter(LedgerFilter value) =>
@@ -329,7 +455,7 @@ class _AccountingScreenState extends ConsumerState<AccountingScreen> {
 
   void _showDetails(LedgerEntry entry) => showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
             title: Text('جزئیات سند ${entry.type.label}'),
             content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -349,10 +475,29 @@ class _AccountingScreenState extends ConsumerState<AccountingScreen> {
                 ]),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(dialogContext),
                   child: const Text('بستن'))
             ],
           ));
+
+  Future<void> _exportExcel(List<LedgerEntry> entries) async {
+    try {
+      await ExcelService.exportLedger(entries);
+    } catch (error) {
+      if (mounted) _showExportError(error);
+    }
+  }
+
+  Future<void> _exportPdf(List<LedgerEntry> entries) async {
+    try {
+      await PdfService.shareLedger(entries);
+    } catch (error) {
+      if (mounted) _showExportError(error);
+    }
+  }
+
+  void _showExportError(Object error) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text('ایجاد خروجی ناموفق بود: $error')));
 
   Future<void> _remove(LedgerEntry entry) async {
     final confirmed = await ConfirmDialog.show(context,
@@ -420,7 +565,9 @@ class _LedgerEntryDialogState extends ConsumerState<_LedgerEntryDialog> {
       child: AlertDialog(
         title: Text(widget.entry == null ? 'ثبت سند حساب' : 'ویرایش سند'),
         content: SizedBox(
-            width: 440,
+            width: MediaQuery.sizeOf(context).width > 520
+                ? 440
+                : MediaQuery.sizeOf(context).width - 64,
             child: Form(
                 key: _formKey,
                 child: SingleChildScrollView(

@@ -7,6 +7,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/models/product.dart';
 import '../../providers/product_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
+import '../../widgets/common/managed_product_image.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
@@ -42,18 +43,22 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'جستجوی محصول...',
-                  hintStyle: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 13),
+                  hintStyle:
+                      const TextStyle(fontFamily: 'Vazirmatn', fontSize: 13),
                   prefixIcon: const Icon(Icons.search, size: 20),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 18),
                           onPressed: () {
                             _searchController.clear();
-                            ref.read(productSearchQueryProvider.notifier).state = '';
+                            ref
+                                .read(productSearchQueryProvider.notifier)
+                                .state = '';
                           },
                         )
                       : null,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -157,11 +162,9 @@ class _ProductCard extends ConsumerWidget {
             Expanded(
               flex: 3,
               child: product.imageUrl != null
-                  ? Image.network(
-                      product.imageUrl!,
-                      fit: BoxFit.cover,
+                  ? ManagedProductImage(
+                      relativePath: product.imageUrl,
                       width: double.infinity,
-                      errorBuilder: (_, __, ___) => _Placeholder(),
                     )
                   : _Placeholder(),
             ),
@@ -196,7 +199,9 @@ class _ProductCard extends ConsumerWidget {
                             color: AppColors.primary,
                           ),
                         ),
-                        _StockBadge(stock: product.stockQuantity, isLow: product.isLowStock),
+                        _StockBadge(
+                            stock: product.stockQuantity,
+                            isLow: product.isLowStock),
                       ],
                     ),
                   ],
@@ -268,7 +273,8 @@ class _ProductCard extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('انصراف', style: TextStyle(fontFamily: 'Vazirmatn')),
+              child: const Text('انصراف',
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -279,7 +285,8 @@ class _ProductCard extends ConsumerWidget {
                 await ref.read(productRepositoryProvider).saveProduct(updated);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
-              child: const Text('ذخیره', style: TextStyle(fontFamily: 'Vazirmatn')),
+              child: const Text('ذخیره',
+                  style: TextStyle(fontFamily: 'Vazirmatn')),
             ),
           ],
         ),

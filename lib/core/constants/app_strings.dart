@@ -3,7 +3,7 @@ class AppStrings {
 
   // نام اپ
   static const String appName = 'فروشگاه هوشمند';
-  static const String appVersion = 'نسخه ۱.۰.۰';
+  static const String appVersion = 'نسخه ۱.۰.۲';
 
   // ورود
   static const String login = 'ورود به سیستم';

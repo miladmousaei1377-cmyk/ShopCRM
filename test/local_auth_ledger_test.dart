@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -52,6 +53,22 @@ void main() {
     expect(await auth.resumeSession(session!.token), isNotNull);
     await auth.revokeSession(session.token);
     expect(await auth.resumeSession(session.token), isNull);
+  });
+
+  test('فاکتورهای آخر داشبورد پس از ثبت به‌صورت زنده به‌روز می‌شوند', () async {
+    final updates = StreamIterator(db.invoicesDao.watchRecentInvoices());
+    expect(await updates.moveNext(), isTrue);
+    expect(updates.current, isEmpty);
+    await db.into(db.invoicesTable).insert(InvoicesTableCompanion.insert(
+          invoiceNumber: 'INV-100',
+          status: const Value('completed'),
+          createdAt: DateTime(2026, 1, 1),
+        ));
+    expect(await updates.moveNext(), isTrue);
+    final invoices = updates.current;
+    expect(invoices, hasLength(1));
+    expect(invoices.single.invoiceNumber, 'INV-100');
+    await updates.cancel();
   });
 
   test('دفتر حساب بدون فاکتور، بدهی و پرداخت و مانده دقیق را نگه می‌دارد',

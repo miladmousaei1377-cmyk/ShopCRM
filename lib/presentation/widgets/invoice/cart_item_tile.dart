@@ -4,6 +4,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/models/invoice_item.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/product_provider.dart';
+import '../common/managed_product_image.dart';
 
 class CartItemTile extends ConsumerWidget {
   final InvoiceItem item;
@@ -13,6 +15,14 @@ class CartItemTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cart = ref.read(cartProvider.notifier);
+    final products = ref.watch(productsStreamProvider).value ?? const [];
+    String? imagePath;
+    for (final product in products) {
+      if (product.id == item.productId) {
+        imagePath = product.imageUrl;
+        break;
+      }
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -26,7 +36,8 @@ class CartItemTile extends ConsumerWidget {
         children: [
           // دکمه حذف
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+            icon: const Icon(Icons.delete_outline,
+                color: AppColors.error, size: 20),
             onPressed: () => cart.removeItem(item.productId),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -38,6 +49,13 @@ class CartItemTile extends ConsumerWidget {
             quantity: item.quantity,
             onIncrement: () => cart.incrementQuantity(item.productId),
             onDecrement: () => cart.decrementQuantity(item.productId),
+          ),
+          const SizedBox(width: 8),
+          ManagedProductImage(
+            relativePath: imagePath,
+            width: 48,
+            height: 48,
+            borderRadius: BorderRadius.circular(8),
           ),
           const SizedBox(width: 12),
 

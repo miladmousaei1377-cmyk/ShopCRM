@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/utils/date_converter.dart';
 import '../core/utils/currency_formatter.dart';
 import '../domain/models/invoice.dart';
+import '../domain/models/ledger_entry.dart';
 import '../data/repositories/report_repository.dart';
 
 class ExcelService {
@@ -172,6 +173,57 @@ class ExcelService {
     await _saveAndShare(
         buildInvoicesWorkbook(invoices), 'فاکتورها_${_today()}');
   }
+
+  static Excel buildLedgerWorkbook(List<LedgerEntry> entries) {
+    final excel = Excel.createExcel();
+    final sheet = excel['دفتر حساب'];
+    sheet.isRTL = true;
+    excel.delete('Sheet1');
+    _addRow(
+        sheet,
+        [
+          'مشتری',
+          'تاریخ ثبت',
+          'نوع عملیات',
+          'بدهکار (تومان)',
+          'بستانکار (تومان)',
+          'مانده (تومان)',
+          'شماره فاکتور',
+          'توضیحات',
+          'تاریخ ایجاد',
+          'آخرین ویرایش',
+          'وضعیت',
+        ],
+        isHeader: true);
+    for (final entry in entries) {
+      _addRow(sheet, [
+        entry.customerName,
+        DateConverter.toShamsi(entry.operationDate),
+        entry.type.label,
+        entry.direction == LedgerDirection.debit
+            ? CurrencyFormatter.formatNumber(entry.amount)
+            : '-',
+        entry.direction == LedgerDirection.credit
+            ? CurrencyFormatter.formatNumber(entry.amount)
+            : '-',
+        CurrencyFormatter.formatNumber(entry.balanceAfter),
+        entry.invoiceNumber ?? '-',
+        entry.description ?? '-',
+        DateConverter.toShamsiWithTime(entry.createdAt),
+        DateConverter.toShamsiWithTime(entry.updatedAt),
+        entry.isActive ? 'فعال' : 'باطل‌شده',
+      ]);
+    }
+    return excel;
+  }
+
+  static List<int> buildLedgerBytes(List<LedgerEntry> entries) =>
+      _encodeRtl(buildLedgerWorkbook(entries));
+
+  static Future<void> exportLedger(List<LedgerEntry> entries) => _saveAndShare(
+        buildLedgerWorkbook(entries),
+        'دفتر_حساب_${_today()}',
+      );
 
   // ─── توابع کمکی ────────────────────────────────────────────────────────────
 
