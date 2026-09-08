@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shop_crm/core/utils/currency_formatter.dart';
 import 'package:shop_crm/core/utils/date_converter.dart';
 import 'package:shop_crm/presentation/widgets/common/confirm_dialog.dart';
+import 'package:shop_crm/app.dart';
 
 void main() {
   test('CurrencyFormatter: فرمت پایه کار می‌کند', () {
@@ -41,5 +42,22 @@ void main() {
       expect(tester.takeException(), isNull);
     }
     await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('بستن پنجره قبل از خروج تأیید می‌گیرد', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () => showExitConfirmation(context),
+          child: const Text('خروج'),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('خروج'));
+    await tester.pumpAndSettle();
+    expect(find.text('آیا می‌خواهید از برنامه خارج شوید؟'), findsOneWidget);
+    await tester.tap(find.text('بازگشت'));
+    await tester.pumpAndSettle();
+    expect(find.text('آیا می‌خواهید از برنامه خارج شوید؟'), findsNothing);
   });
 }

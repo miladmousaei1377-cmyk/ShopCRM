@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:window_manager/window_manager.dart';
 import 'core/constants/app_strings.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/keyboard_shortcuts.dart';
@@ -25,10 +26,13 @@ import 'presentation/screens/settings/printer_settings_screen.dart';
 import 'presentation/screens/reports/reports_screen.dart';
 import 'presentation/screens/accounting/accounting_screen.dart';
 
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: authState.isLoggedIn ? '/dashboard' : '/login',
     redirect: (context, state) {
       final isLoggedIn = authState.isLoggedIn;
@@ -120,11 +124,43 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class ShopCrmApp extends ConsumerWidget {
+class ShopCrmApp extends ConsumerStatefulWidget {
   const ShopCrmApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ShopCrmApp> createState() => _ShopCrmAppState();
+}
+
+class _ShopCrmAppState extends ConsumerState<ShopCrmApp> with WindowListener {
+  bool _isClosing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Platform.isWindows) windowManager.addListener(this);
+  }
+
+  @override
+  void dispose() {
+    if (Platform.isWindows) windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  Future<void> onWindowClose() async {
+    if (_isClosing) return;
+    final context = _rootNavigatorKey.currentContext;
+    if (context == null) return;
+    final confirmed = await showExitConfirmation(context);
+    if (!confirmed) return;
+    _isClosing = true;
+    await ref.read(authProvider.notifier).logout();
+    await windowManager.setPreventClose(false);
+    await windowManager.destroy();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
 
@@ -135,27 +171,75 @@ class ShopCrmApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       routerConfig: router,
-      builder: (context, child) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AppKeyboardShortcuts(
-          child: child ?? const SizedBox(),
-        ),
-      ),
+      builder: (context, child) {
+        Widget content = Directionality(
+          textDirection: TextDirection.rtl,
+          child: AppKeyboardShortcuts(child: child ?? const SizedBox()),
+        );
+        if (Platform.isWindows) {
+          final media = MediaQuery.of(context);
+          final currentScale = media.textScaler.scale(14) / 14;
+          if (currentScale < 1.12) {
+            content = MediaQuery(
+              data: media.copyWith(textScaler: const TextScaler.linear(1.12)),
+              child: content,
+            );
+          }
+        }
+        return content;
+      },
     );
   }
 }
 
+Future<bool> showExitConfirmation(BuildContext context) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Row(children: [
+            Icon(Icons.exit_to_app, color: Colors.red),
+            SizedBox(width: 8),
+            Text('خروج از برنامه'),
+          ]),
+          content: const Text('آیا می‌خواهید از برنامه خارج شوید؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('بازگشت'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('خروج', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    ) ??
+    false;
+
+void showApplicationAboutDialog(BuildContext context) => showAboutDialog(
+      context: context,
+      applicationName: AppStrings.appName,
+      applicationVersion: AppStrings.appVersion,
+      applicationIcon: const Icon(Icons.storefront, size: 40),
+      children: const [Text('سامانه محلی مدیریت فروشگاه و مشتریان')],
+    );
+
 // ─── Shell ریسپانسیو ──────────────────────────────────────────────────────────
 
-class _AppShell extends StatefulWidget {
+class _AppShell extends ConsumerStatefulWidget {
   final Widget child;
   const _AppShell({required this.child});
 
   @override
-  State<_AppShell> createState() => _AppShellState();
+  ConsumerState<_AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
+class _AppShellState extends ConsumerState<_AppShell>
+    with WidgetsBindingObserver {
   // ─── آیتم‌های دسکتاپ (همه ۹ مسیر) ──────────────────────────────────────
   static const _routes = [
     '/dashboard',
@@ -280,8 +364,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
       }
     } catch (_) {}
     if (!mounted) return false;
-    final shouldExit = await _showExitDialog(context);
-    if (shouldExit && mounted) SystemNavigator.pop();
+    await _requestExit();
     return true;
   }
 
@@ -356,46 +439,15 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
     );
   }
 
-  Future<bool> _showExitDialog(BuildContext context) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (ctx) => Directionality(
-            textDirection: TextDirection.rtl,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              title: const Row(
-                children: [
-                  Icon(Icons.exit_to_app, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('خروج از برنامه',
-                      style: TextStyle(
-                          fontFamily: 'Vazirmatn',
-                          fontWeight: FontWeight.w700)),
-                ],
-              ),
-              content: const Text(
-                'آیا می‌خواهید از فروشگاه هوشمند خارج شوید؟',
-                style: TextStyle(fontFamily: 'Vazirmatn', fontSize: 14),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('بازگشت',
-                      style: TextStyle(fontFamily: 'Vazirmatn')),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('خروج',
-                      style: TextStyle(
-                          fontFamily: 'Vazirmatn', color: Colors.white)),
-                ),
-              ],
-            ),
-          ),
-        ) ??
-        false;
+  Future<void> _requestExit() async {
+    if (!await showExitConfirmation(context) || !mounted) return;
+    await ref.read(authProvider.notifier).logout();
+    if (Platform.isWindows) {
+      await windowManager.setPreventClose(false);
+      await windowManager.destroy();
+    } else {
+      SystemNavigator.pop();
+    }
   }
 
   @override
@@ -421,13 +473,48 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
                   icon: Icon(_icons[i]),
                   selectedIcon: Icon(_selectedIcons[i]),
                   label: Text(_labels[i],
-                      style: const TextStyle(
-                          fontFamily: 'Vazirmatn', fontSize: 12)),
+                      style: TextStyle(
+                          fontFamily: 'Vazirmatn',
+                          fontSize: Platform.isWindows ? 14 : 12)),
                 ),
               ),
               selectedIndex: idx,
               onDestinationSelected: (i) => _navigate(_routes[i]),
               leading: const SizedBox(height: 16),
+              trailing: Platform.isWindows
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        if (isWide)
+                          TextButton.icon(
+                            onPressed: () =>
+                                showApplicationAboutDialog(context),
+                            icon: const Icon(Icons.info_outline),
+                            label: const Text('درباره ما'),
+                          )
+                        else
+                          IconButton(
+                            tooltip: 'درباره ما',
+                            onPressed: () =>
+                                showApplicationAboutDialog(context),
+                            icon: const Icon(Icons.info_outline),
+                          ),
+                        if (isWide)
+                          TextButton.icon(
+                            onPressed: _requestExit,
+                            icon: const Icon(Icons.logout, color: Colors.red),
+                            label: const Text('خروج',
+                                style: TextStyle(color: Colors.red)),
+                          )
+                        else
+                          IconButton(
+                            tooltip: 'خروج',
+                            onPressed: _requestExit,
+                            icon: const Icon(Icons.logout, color: Colors.red),
+                          ),
+                      ]),
+                    )
+                  : null,
             ),
             const VerticalDivider(thickness: 1, width: 1),
             Expanded(child: widget.child),

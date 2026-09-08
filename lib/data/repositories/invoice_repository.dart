@@ -48,6 +48,16 @@ class InvoiceRepository {
     return result;
   }
 
+  Stream<List<Invoice>> watchRecentInvoices({int limit = 5}) =>
+      _db.invoicesDao.watchRecentInvoices(limit: limit).asyncMap((rows) async {
+        final result = <Invoice>[];
+        for (final row in rows) {
+          final items = await _db.invoicesDao.getInvoiceItems(row.id);
+          result.add(_mapToModel(row, items));
+        }
+        return result;
+      });
+
   Future<List<Invoice>> getInvoicesByPeriod(DateTime from, DateTime to) async {
     final rows = await _db.invoicesDao.getInvoicesByPeriod(from, to);
     final result = <Invoice>[];

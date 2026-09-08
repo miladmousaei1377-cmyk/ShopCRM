@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shop_crm/data/repositories/report_repository.dart';
 import 'package:shop_crm/domain/models/invoice.dart';
 import 'package:shop_crm/domain/models/invoice_item.dart';
+import 'package:shop_crm/domain/models/ledger_entry.dart';
 import 'package:shop_crm/services/pdf_service.dart';
 import 'package:shop_crm/services/excel_service.dart';
 import 'package:shop_crm/services/printer/escpos_builder.dart';
@@ -94,6 +95,24 @@ void main() {
         containsAll(['نسیه', 'تکمیل شده']));
   });
 
+  test('Excel دفتر حساب دارای ستون‌های فارسی و RTL است', () {
+    final entry = _ledgerEntry();
+    final bytes = ExcelService.buildLedgerBytes([entry]);
+    final workbook = Excel.decodeBytes(bytes);
+    final sheet = workbook.tables['دفتر حساب']!;
+    expect(_worksheetXml(bytes), contains('rightToLeft="1"'));
+    expect(sheet.rows.first.map((cell) => cell?.value.toString()),
+        containsAll(['مشتری', 'بدهکار (تومان)', 'مانده (تومان)']));
+    expect(sheet.rows[1].map((cell) => cell?.value.toString()),
+        containsAll(['مشتری آزمایشی', 'بدهی', 'فعال']));
+  });
+
+  test('PDF دفتر حساب فارسی تولید می‌شود', () async {
+    final bytes = await PdfService.buildLedgerPdf([_ledgerEntry()]);
+    expect(bytes.take(4).toList(), [37, 80, 68, 70]);
+    expect(bytes.length, greaterThan(5000));
+  });
+
   test('چاپ حرارتی فاکتور به تصویر رستری واقعی تبدیل می‌شود', () async {
     final invoice = Invoice(
       id: 1,
@@ -124,6 +143,20 @@ void main() {
     expect(bytes.length, greaterThan(1000));
   });
 }
+
+LedgerEntry _ledgerEntry() => LedgerEntry(
+      id: 'entry-1',
+      customerId: 1,
+      customerName: 'مشتری آزمایشی',
+      type: LedgerEntryType.debt,
+      amount: 250000,
+      direction: LedgerDirection.debit,
+      operationDate: DateTime(2026, 1, 1),
+      description: 'بدهی اولیه',
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      balanceAfter: 250000,
+    );
 
 String _worksheetXml(List<int> bytes) => ZipDecoder()
     .decodeBytes(bytes)

@@ -11,10 +11,10 @@ import '../../../domain/models/product.dart';
 import '../../../domain/models/customer.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/customer_provider.dart';
-import '../../providers/invoice_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/printer_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
+import '../../widgets/common/managed_product_image.dart';
 import '../../widgets/invoice/cart_item_tile.dart';
 import '../../widgets/invoice/invoice_summary_card.dart';
 import '../../widgets/barcode/barcode_scanner_widget.dart';
@@ -1002,6 +1002,12 @@ class _ProductSearchInline extends ConsumerWidget {
         final p = filtered[i];
         return ListTile(
           dense: true,
+          leading: ManagedProductImage(
+            relativePath: p.imageUrl,
+            width: 48,
+            height: 48,
+            borderRadius: BorderRadius.circular(8),
+          ),
           title: Text(p.name,
               style: const TextStyle(
                   fontFamily: 'Vazirmatn',

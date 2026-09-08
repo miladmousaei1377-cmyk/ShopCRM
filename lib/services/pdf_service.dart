@@ -7,6 +7,7 @@ import '../core/constants/app_strings.dart';
 import '../core/utils/date_converter.dart';
 import '../core/utils/currency_formatter.dart';
 import '../domain/models/invoice.dart';
+import '../domain/models/ledger_entry.dart';
 import '../data/repositories/report_repository.dart';
 
 class PdfService {
@@ -278,6 +279,80 @@ class PdfService {
     return pdf.save();
   }
 
+  static Future<Uint8List> buildLedgerPdf(List<LedgerEntry> entries) async {
+    final pdf = pw.Document();
+    final font = await _loadFont();
+    final body = pw.TextStyle(font: font, fontSize: 8);
+    final bold =
+        pw.TextStyle(font: font, fontSize: 8, fontWeight: pw.FontWeight.bold);
+    final title =
+        pw.TextStyle(font: font, fontSize: 15, fontWeight: pw.FontWeight.bold);
+
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4.landscape,
+      margin: const pw.EdgeInsets.all(20),
+      header: (_) => pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 12),
+        child: pw.Center(child: _rtlText('دفتر حساب مشتریان', title)),
+      ),
+      build: (_) => [
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey400, width: .5),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(1.1),
+            1: pw.FlexColumnWidth(1),
+            2: pw.FlexColumnWidth(1),
+            3: pw.FlexColumnWidth(1),
+            4: pw.FlexColumnWidth(1),
+            5: pw.FlexColumnWidth(1),
+            6: pw.FlexColumnWidth(1.1),
+            7: pw.FlexColumnWidth(1.4),
+          },
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              children: [
+                _tableCell('توضیحات', bold),
+                _tableCell('فاکتور', bold),
+                _tableCell('مانده', bold),
+                _tableCell('بستانکار', bold),
+                _tableCell('بدهکار', bold),
+                _tableCell('نوع عملیات', bold),
+                _tableCell('تاریخ', bold),
+                _tableCell('مشتری', bold),
+              ],
+            ),
+            ...entries.map((entry) => pw.TableRow(children: [
+                  _tableCell(entry.description ?? '-', body),
+                  _tableCell(entry.invoiceNumber ?? '-', body),
+                  _tableCell(
+                      '${CurrencyFormatter.formatNumber(entry.balanceAfter)} تومان',
+                      body),
+                  _tableCell(
+                      entry.direction == LedgerDirection.credit
+                          ? '${CurrencyFormatter.formatNumber(entry.amount)} تومان'
+                          : '-',
+                      body),
+                  _tableCell(
+                      entry.direction == LedgerDirection.debit
+                          ? '${CurrencyFormatter.formatNumber(entry.amount)} تومان'
+                          : '-',
+                      body),
+                  _tableCell(
+                      entry.isActive
+                          ? entry.type.label
+                          : '${entry.type.label} (باطل)',
+                      body),
+                  _tableCell(DateConverter.toShamsi(entry.operationDate), body),
+                  _tableCell(entry.customerName, body),
+                ])),
+          ],
+        ),
+      ],
+    ));
+    return pdf.save();
+  }
+
   // ─── ذخیره و اشتراک‌گذاری ──────────────────────────────────────────────────
 
   static Future<void> savePdf(Uint8List bytes, String filename) async {
@@ -287,6 +362,12 @@ class PdfService {
   static Future<void> shareInvoicePdf(Invoice invoice) async {
     final bytes = await buildInvoicePdf(invoice);
     await savePdf(bytes, 'فاکتور_${invoice.invoiceNumber}');
+  }
+
+  static Future<void> shareLedger(List<LedgerEntry> entries) async {
+    final bytes = await buildLedgerPdf(entries);
+    await savePdf(bytes,
+        'دفتر_حساب_${DateConverter.toShamsi(DateTime.now()).replaceAll('/', '-')}');
   }
 
   static Future<void> shareSalesReport({
