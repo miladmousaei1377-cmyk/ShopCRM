@@ -30,8 +30,17 @@ import 'package:shop_crm/presentation/widgets/common/confirm_dialog.dart';
 import 'package:shop_crm/app.dart';
 
 void main() {
-  test('نام نمایشی برنامه nexocrm است', () {
-    expect(AppStrings.appName, 'nexocrm');
+  test('نام نمایشی برنامه NEXOCRM و نسخه ۱.۰.۲ است', () {
+    expect(AppStrings.appName, 'NEXOCRM');
+    expect(AppStrings.appVersion, 'نسخه ۱.۰.۲');
+    expect(
+      applicationInstagramUri,
+      Uri.parse('https://www.instagram.com/mld.tech1/'),
+    );
+    expect(
+      applicationEmailUri,
+      Uri.parse('mailto:mldtech1.official@gmail.com'),
+    );
   });
 
   testWidgets('درباره برنامه اطلاعات توسعه‌دهنده و راه‌های ارتباطی را نشان می‌دهد',
@@ -48,10 +57,16 @@ void main() {
     await tester.tap(find.text('درباره'));
     await tester.pumpAndSettle();
 
-    expect(find.text('nexocrm'), findsOneWidget);
+    expect(find.text('NEXOCRM'), findsOneWidget);
     expect(find.text('طراحی و توسعه توسط MLD TECH'), findsOneWidget);
     expect(find.text('اینستاگرام: mld.tech1'), findsOneWidget);
     expect(find.text('ایمیل: mldtech1.official@gmail.com'), findsOneWidget);
+    expect(find.byKey(const ValueKey('about-instagram-link')), findsOneWidget);
+    expect(find.byKey(const ValueKey('about-email-link')), findsOneWidget);
+    expect(find.byKey(const ValueKey('about-close-button')), findsOneWidget);
+    expect(find.text('بستن'), findsOneWidget);
+    expect(find.text('Close'), findsNothing);
+    expect(find.text('View licenses'), findsNothing);
   });
 
   test('CurrencyFormatter: فرمت پایه کار می‌کند', () {

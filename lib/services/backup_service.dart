@@ -46,13 +46,13 @@ class BackupService {
       final stamp = '${now.year}${_two(now.month)}${_two(now.day)}_'
           '${_two(now.hour)}${_two(now.minute)}${_two(now.second)}_'
           '${now.millisecond.toString().padLeft(3, '0')}';
-      snapshot = File(p.join(backupDir.path, 'nexocrm_$stamp.sqlite'));
+      snapshot = File(p.join(backupDir.path, 'NEXOCRM_$stamp.sqlite'));
 
       await db.customStatement('PRAGMA wal_checkpoint(FULL)');
       final escaped = snapshot.path.replaceAll("'", "''");
       await db.customStatement("VACUUM INTO '$escaped'");
 
-      final zipFile = File(p.join(backupDir.path, 'nexocrm_$stamp.zip'));
+      final zipFile = File(p.join(backupDir.path, 'NEXOCRM_$stamp.zip'));
       final encoder = ZipFileEncoder()..create(zipFile.path);
       encoder.addFile(snapshot, 'database/${AppDatabase.databaseFileName}');
       final images = await AppPaths.productImagesDirectory();

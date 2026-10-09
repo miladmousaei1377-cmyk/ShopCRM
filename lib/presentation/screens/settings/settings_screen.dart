@@ -518,7 +518,7 @@ class _BackupSectionState extends State<_BackupSection> {
   Future<void> _restoreBackup() async {
     final selected = await openFile(
       acceptedTypeGroups: const [
-        XTypeGroup(label: 'پشتیبان nexocrm', extensions: ['zip']),
+        XTypeGroup(label: 'پشتیبان NEXOCRM', extensions: ['zip']),
       ],
     );
     if (selected == null || !mounted) return;

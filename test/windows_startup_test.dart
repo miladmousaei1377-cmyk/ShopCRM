@@ -16,7 +16,7 @@ void main() {
     expect(nativeSource, contains('ShowWindow(window_handle_, SW_MAXIMIZE)'));
   });
 
-  test('Windows build and visible metadata use the nexocrm name', () async {
+  test('Windows build and visible metadata use NEXOCRM version 1.0.2', () async {
     final cmake = await File('windows/CMakeLists.txt').readAsString();
     final runner = await File('windows/runner/main.cpp').readAsString();
     final resources = await File('windows/runner/Runner.rc').readAsString();
@@ -26,14 +26,16 @@ void main() {
     final workflow =
         await File('.github/workflows/build-windows.yml').readAsString();
 
-    expect(cmake, contains('set(BINARY_NAME "nexocrm")'));
-    expect(runner, contains('window.Create(L"nexocrm"'));
-    expect(resources, contains('VALUE "ProductName", "nexocrm"'));
-    expect(resources, contains('VALUE "OriginalFilename", "nexocrm.exe"'));
-    expect(manifest, contains('android:label="nexocrm"'));
-    expect(pubspec, contains('display_name: nexocrm'));
-    expect(pubspec, contains('output_name: nexocrm-Setup'));
-    expect(workflow, contains('nexocrm-windows.zip'));
+    expect(cmake, contains('set(BINARY_NAME "NEXOCRM")'));
+    expect(runner, contains('window.Create(L"NEXOCRM"'));
+    expect(resources, contains('VALUE "ProductName", "NEXOCRM"'));
+    expect(resources, contains('VALUE "OriginalFilename", "NEXOCRM.exe"'));
+    expect(manifest, contains('android:label="NEXOCRM"'));
+    expect(pubspec, contains('version: 1.0.2+7'));
+    expect(pubspec, contains('display_name: NEXOCRM'));
+    expect(pubspec, contains('msix_version: 1.0.2.0'));
+    expect(pubspec, contains('output_name: NEXOCRM-Setup'));
+    expect(workflow, contains('NEXOCRM-windows.zip'));
   });
 
   test('Windows exit hides the window before session cleanup', () async {

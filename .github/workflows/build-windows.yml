@@ -50,7 +50,7 @@ jobs:
       - name: ذخیره خروجی code generation
         uses: actions/upload-artifact@v4
         with:
-          name: nexocrm-generated-sources
+          name: NEXOCRM-generated-sources
           path: |
             lib/**/*.dart
             test/**/*.dart
@@ -76,17 +76,17 @@ jobs:
         run: |
           Compress-Archive `
             -Path build\windows\x64\runner\Release\* `
-            -DestinationPath nexocrm-windows.zip
-          (Get-FileHash nexocrm-windows.zip -Algorithm SHA256).Hash.ToLower() + `
-            "  nexocrm-windows.zip" | Set-Content nexocrm-windows.zip.sha256
+            -DestinationPath NEXOCRM-windows.zip
+          (Get-FileHash NEXOCRM-windows.zip -Algorithm SHA256).Hash.ToLower() + `
+            "  NEXOCRM-windows.zip" | Set-Content NEXOCRM-windows.zip.sha256
 
       # ─── ۸. آپلود ───────────────────────────────────────────────────────────
       - name: آپلود فایل ZIP ویندوز
         uses: actions/upload-artifact@v4
         with:
-          name: nexocrm-windows-release
+          name: NEXOCRM-windows-release
           path: |
-            nexocrm-windows.zip
-            nexocrm-windows.zip.sha256
+            NEXOCRM-windows.zip
+            NEXOCRM-windows.zip.sha256
             build/windows/msix/*.msix
           retention-days: 30
