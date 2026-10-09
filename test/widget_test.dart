@@ -12,6 +12,7 @@ import 'package:drift/native.dart';
 import 'package:shop_crm/core/utils/currency_formatter.dart';
 import 'package:shop_crm/core/utils/date_converter.dart';
 import 'package:shop_crm/core/constants/app_colors.dart';
+import 'package:shop_crm/core/constants/app_strings.dart';
 import 'package:shop_crm/data/repositories/report_repository.dart';
 import 'package:shop_crm/data/local/database.dart';
 import 'package:shop_crm/domain/models/ledger_entry.dart';
@@ -24,10 +25,35 @@ import 'package:shop_crm/presentation/screens/invoice/new_invoice_screen.dart';
 import 'package:shop_crm/presentation/screens/reports/reports_screen.dart';
 import 'package:shop_crm/presentation/providers/report_provider.dart';
 import 'package:shop_crm/presentation/widgets/common/app_header_back_button.dart';
+import 'package:shop_crm/presentation/widgets/common/application_about_dialog.dart';
 import 'package:shop_crm/presentation/widgets/common/confirm_dialog.dart';
 import 'package:shop_crm/app.dart';
 
 void main() {
+  test('نام نمایشی برنامه nexocrm است', () {
+    expect(AppStrings.appName, 'nexocrm');
+  });
+
+  testWidgets('درباره برنامه اطلاعات توسعه‌دهنده و راه‌های ارتباطی را نشان می‌دهد',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () => showApplicationAboutDialog(context),
+          child: const Text('درباره'),
+        ),
+      ),
+    ));
+
+    await tester.tap(find.text('درباره'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('nexocrm'), findsOneWidget);
+    expect(find.text('طراحی و توسعه توسط MLD TECH'), findsOneWidget);
+    expect(find.text('اینستاگرام: mld.tech1'), findsOneWidget);
+    expect(find.text('ایمیل: mldtech1.official@gmail.com'), findsOneWidget);
+  });
+
   test('CurrencyFormatter: فرمت پایه کار می‌کند', () {
     expect(CurrencyFormatter.format(0), '۰ تومان');
     expect(CurrencyFormatter.format(1000), '۱,۰۰۰ تومان');

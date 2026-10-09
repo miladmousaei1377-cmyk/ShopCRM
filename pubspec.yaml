@@ -1,5 +1,5 @@
 name: shop_crm
-description: فروشگاه هوشمند - سیستم مدیریت فروشگاه
+description: nexocrm - سیستم مدیریت فروشگاه
 publish_to: 'none'
 version: 1.0.5+6
 
@@ -121,8 +121,8 @@ flutter:
           weight: 900
 
 msix_config:
-  display_name: فروشگاه هوشمند
-  publisher_display_name: ShopCRM
+  display_name: nexocrm
+  publisher_display_name: MLD TECH
   identity_name: MiladMousaei.ShopCRM
   publisher: CN=ShopCRM
   msix_version: 1.0.5.0
@@ -132,4 +132,4 @@ msix_config:
   store: false
   install_certificate: false
   output_path: build/windows/msix
-  output_name: ShopCRM-Setup
+  output_name: nexocrm-Setup

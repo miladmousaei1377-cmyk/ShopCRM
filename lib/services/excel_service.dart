@@ -333,7 +333,7 @@ class ExcelService {
               mimeType:
                   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         ],
-        text: 'فایل صفحه‌گسترده فروشگاه هوشمند',
+        text: 'فایل صفحه‌گسترده ${AppStrings.appName}',
       ));
     } catch (e) {
       debugPrint('[ExcelService] خطا در ذخیره/اشتراک: $e');

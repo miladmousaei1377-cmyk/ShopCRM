@@ -50,7 +50,7 @@ jobs:
       - name: ذخیره خروجی code generation
         uses: actions/upload-artifact@v4
         with:
-          name: shopcrm-generated-sources
+          name: nexocrm-generated-sources
           path: |
             lib/**/*.dart
             test/**/*.dart
@@ -76,17 +76,17 @@ jobs:
         run: |
           Compress-Archive `
             -Path build\windows\x64\runner\Release\* `
-            -DestinationPath shopcrm-windows.zip
-          (Get-FileHash shopcrm-windows.zip -Algorithm SHA256).Hash.ToLower() + `
-            "  shopcrm-windows.zip" | Set-Content shopcrm-windows.zip.sha256
+            -DestinationPath nexocrm-windows.zip
+          (Get-FileHash nexocrm-windows.zip -Algorithm SHA256).Hash.ToLower() + `
+            "  nexocrm-windows.zip" | Set-Content nexocrm-windows.zip.sha256
 
       # ─── ۸. آپلود ───────────────────────────────────────────────────────────
       - name: آپلود فایل ZIP ویندوز
         uses: actions/upload-artifact@v4
         with:
-          name: shopcrm-windows-release
+          name: nexocrm-windows-release
           path: |
-            shopcrm-windows.zip
-            shopcrm-windows.zip.sha256
+            nexocrm-windows.zip
+            nexocrm-windows.zip.sha256
             build/windows/msix/*.msix
           retention-days: 30

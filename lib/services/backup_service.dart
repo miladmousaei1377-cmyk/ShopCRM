@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/local/database.dart';
 import 'app_paths.dart';
 import 'log_service.dart';
+import '../core/constants/app_strings.dart';
 
 class BackupService {
   BackupService._();
@@ -45,13 +46,13 @@ class BackupService {
       final stamp = '${now.year}${_two(now.month)}${_two(now.day)}_'
           '${_two(now.hour)}${_two(now.minute)}${_two(now.second)}_'
           '${now.millisecond.toString().padLeft(3, '0')}';
-      snapshot = File(p.join(backupDir.path, 'shopcrm_$stamp.sqlite'));
+      snapshot = File(p.join(backupDir.path, 'nexocrm_$stamp.sqlite'));
 
       await db.customStatement('PRAGMA wal_checkpoint(FULL)');
       final escaped = snapshot.path.replaceAll("'", "''");
       await db.customStatement("VACUUM INTO '$escaped'");
 
-      final zipFile = File(p.join(backupDir.path, 'shopcrm_$stamp.zip'));
+      final zipFile = File(p.join(backupDir.path, 'nexocrm_$stamp.zip'));
       final encoder = ZipFileEncoder()..create(zipFile.path);
       encoder.addFile(snapshot, 'database/${AppDatabase.databaseFileName}');
       final images = await AppPaths.productImagesDirectory();
@@ -93,7 +94,7 @@ class BackupService {
   static Future<void> _shareBackup(File file) =>
       SharePlus.instance.share(ShareParams(
         files: [XFile(file.path)],
-        subject: 'پشتیبان فروشگاه هوشمند',
+        subject: 'پشتیبان ${AppStrings.appName}',
         text: 'پشتیبان داده‌ها و تصاویر فروشگاه',
       ));
 

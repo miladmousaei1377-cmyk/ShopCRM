@@ -2,8 +2,12 @@ class AppStrings {
   AppStrings._();
 
   // نام اپ
-  static const String appName = 'فروشگاه هوشمند';
+  static const String appName = 'nexocrm';
   static const String appVersion = 'نسخه ۱.۰.۵';
+  static const String developer = 'طراحی و توسعه توسط MLD TECH';
+  static const String instagram = 'اینستاگرام: mld.tech1';
+  static const String developerEmail =
+      'ایمیل: mldtech1.official@gmail.com';
 
   // ورود
   static const String login = 'ورود به سیستم';

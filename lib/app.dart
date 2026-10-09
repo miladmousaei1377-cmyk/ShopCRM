@@ -25,6 +25,7 @@ import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/settings/printer_settings_screen.dart';
 import 'presentation/screens/reports/reports_screen.dart';
 import 'presentation/screens/accounting/accounting_screen.dart';
+import 'presentation/widgets/common/application_about_dialog.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -223,14 +224,6 @@ Future<bool> showExitConfirmation(BuildContext context) async =>
       ),
     ) ??
     false;
-
-void showApplicationAboutDialog(BuildContext context) => showAboutDialog(
-      context: context,
-      applicationName: AppStrings.appName,
-      applicationVersion: AppStrings.appVersion,
-      applicationIcon: const Icon(Icons.storefront, size: 40),
-      children: const [Text('سامانه محلی مدیریت فروشگاه و مشتریان')],
-    );
 
 // ─── Shell ریسپانسیو ──────────────────────────────────────────────────────────
 

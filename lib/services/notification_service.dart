@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../core/constants/app_strings.dart';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -8,7 +9,7 @@ class NotificationService {
     if (_initialized) return;
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const windows = WindowsInitializationSettings(
-      appName: 'فروشگاه هوشمند',
+      appName: AppStrings.appName,
       appUserModelId: 'MiladMousaei.ShopCRM',
       guid: '8c92a520-6c1d-4ef3-ae32-4f79d17912f1',
     );

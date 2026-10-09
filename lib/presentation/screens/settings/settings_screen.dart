@@ -13,6 +13,7 @@ import '../../../services/backup_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/sync_provider.dart';
 import '../../widgets/common/app_header_back_button.dart';
+import '../../widgets/common/application_about_dialog.dart';
 import '../../widgets/common/confirm_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -101,10 +102,11 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => context.go('/settings/printer'),
                 ),
                 const Divider(height: 1),
-                const _SettingsTile(
+                _SettingsTile(
                   icon: Icons.info_outline,
                   title: 'درباره اپلیکیشن',
                   subtitle: '${AppStrings.appName} - ${AppStrings.appVersion}',
+                  onTap: () => showApplicationAboutDialog(context),
                 ),
                 const Divider(height: 1),
                 _SettingsTile(
@@ -516,7 +518,7 @@ class _BackupSectionState extends State<_BackupSection> {
   Future<void> _restoreBackup() async {
     final selected = await openFile(
       acceptedTypeGroups: const [
-        XTypeGroup(label: 'پشتیبان ShopCRM', extensions: ['zip']),
+        XTypeGroup(label: 'پشتیبان nexocrm', extensions: ['zip']),
       ],
     );
     if (selected == null || !mounted) return;
@@ -711,7 +713,8 @@ class _ProfileSectionState extends State<_ProfileSection> {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = _storeName.isNotEmpty ? _storeName : 'فروشگاه هوشمند';
+    final displayName =
+        _storeName.isNotEmpty ? _storeName : AppStrings.appName;
     final displayOwner = _ownerName.isNotEmpty ? _ownerName : 'تنظیم نشده';
 
     return InkWell(

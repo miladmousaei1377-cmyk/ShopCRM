@@ -16,6 +16,26 @@ void main() {
     expect(nativeSource, contains('ShowWindow(window_handle_, SW_MAXIMIZE)'));
   });
 
+  test('Windows build and visible metadata use the nexocrm name', () async {
+    final cmake = await File('windows/CMakeLists.txt').readAsString();
+    final runner = await File('windows/runner/main.cpp').readAsString();
+    final resources = await File('windows/runner/Runner.rc').readAsString();
+    final manifest =
+        await File('android/app/src/main/AndroidManifest.xml').readAsString();
+    final pubspec = await File('pubspec.yaml').readAsString();
+    final workflow =
+        await File('.github/workflows/build-windows.yml').readAsString();
+
+    expect(cmake, contains('set(BINARY_NAME "nexocrm")'));
+    expect(runner, contains('window.Create(L"nexocrm"'));
+    expect(resources, contains('VALUE "ProductName", "nexocrm"'));
+    expect(resources, contains('VALUE "OriginalFilename", "nexocrm.exe"'));
+    expect(manifest, contains('android:label="nexocrm"'));
+    expect(pubspec, contains('display_name: nexocrm'));
+    expect(pubspec, contains('output_name: nexocrm-Setup'));
+    expect(workflow, contains('nexocrm-windows.zip'));
+  });
+
   test('Windows exit hides the window before session cleanup', () async {
     final source = await File('lib/app.dart').readAsString();
     final hideIndex = source.indexOf('await windowManager.hide();');
