@@ -1,5 +1,6 @@
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/constants/app_strings.dart';
 
 class BiometricService {
   BiometricService._();
@@ -30,7 +31,8 @@ class BiometricService {
   static Future<bool> authenticate() async {
     try {
       return await _auth.authenticate(
-        localizedReason: 'برای ورود به فروشگاه هوشمند اثر انگشت خود را تأیید کنید',
+        localizedReason:
+            'برای ورود به ${AppStrings.appName} اثر انگشت خود را تأیید کنید',
         options: const AuthenticationOptions(
           stickyAuth: true,
           biometricOnly: false,

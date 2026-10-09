@@ -1,5 +1,5 @@
-/// صفحه لیست مشتریان
-/// جستجو، نمایش بدهی، و ناوبری به جزئیات هر مشتری
+// صفحه لیست مشتریان
+// جستجو، نمایش بدهی، و ناوبری به جزئیات هر مشتری
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +8,6 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/models/customer.dart';
 import '../../../domain/models/product.dart';
-import '../../../data/repositories/customer_repository.dart';
 import '../../providers/cart_provider.dart';
 import '../../widgets/common/app_header_back_button.dart';
 
@@ -360,7 +359,9 @@ class _CustomerTile extends StatelessWidget {
                 color: hasDebt ? AppColors.errorLight : AppColors.successLight,
                 borderRadius: BorderRadius.circular(12),
                 border: hasDebt
-                    ? Border.all(color: AppColors.error.withOpacity(0.4))
+                    ? Border.all(
+                        color: AppColors.error.withValues(alpha: 0.4),
+                      )
                     : null,
               ),
               child: Text(
@@ -444,7 +445,7 @@ class CustomerFormDialog extends ConsumerStatefulWidget {
   final Customer? customer; // اگر null → افزودن، وگرنه → ویرایش
   final VoidCallback? onSaved;
 
-  const CustomerFormDialog({this.customer, this.onSaved});
+  const CustomerFormDialog({super.key, this.customer, this.onSaved});
 
   @override
   ConsumerState<CustomerFormDialog> createState() => CustomerFormDialogState();

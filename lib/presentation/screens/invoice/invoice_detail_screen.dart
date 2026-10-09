@@ -1,6 +1,6 @@
-/// صفحه جزئیات فاکتور
-/// نمایش کامل یک فاکتور: اطلاعات، آیتم‌ها، خلاصه مالی
-/// امکان پرینت و اشتراک‌گذاری متن فاکتور
+// صفحه جزئیات فاکتور
+// نمایش کامل یک فاکتور: اطلاعات، آیتم‌ها، خلاصه مالی
+// امکان پرینت و اشتراک‌گذاری متن فاکتور
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -10,9 +10,13 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_converter.dart';
 import '../../../domain/models/invoice.dart';
 import '../../../domain/models/invoice_item.dart';
+import '../../providers/cart_provider.dart';
 import '../../providers/invoice_provider.dart';
-import '../../providers/printer_provider.dart';
+import '../../providers/product_provider.dart';
+import '../../providers/customer_provider.dart';
+import '../../providers/report_provider.dart';
 import '../../widgets/common/app_header_back_button.dart';
+import '../../widgets/common/confirm_dialog.dart';
 import '../../../services/pdf_service.dart';
 import 'package:printing/printing.dart';
 
@@ -115,11 +119,85 @@ class _InvoiceDetailBody extends ConsumerWidget {
 
             // ─── خلاصه مالی ─────────────────────────────────────
             _buildFinancialSummary(invoice),
+            if (invoice.status == InvoiceStatus.completed) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _changeStatus(
+                        context,
+                        ref,
+                        invoice,
+                        InvoiceStatus.cancelled,
+                      ),
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('لغو فاکتور'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _changeStatus(
+                        context,
+                        ref,
+                        invoice,
+                        InvoiceStatus.refunded,
+                      ),
+                      icon: const Icon(Icons.assignment_return_outlined),
+                      label: const Text('مرجوعی'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 32),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _changeStatus(
+    BuildContext context,
+    WidgetRef ref,
+    Invoice invoice,
+    InvoiceStatus status,
+  ) async {
+    final isRefund = status == InvoiceStatus.refunded;
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: isRefund ? 'مرجوعی فاکتور' : 'لغو فاکتور',
+      message:
+          'موجودی کالاها بازگردانده و سند بدهی مرتبط ابطال می‌شود. ادامه می‌دهید؟',
+      confirmText: isRefund ? 'ثبت مرجوعی' : 'لغو فاکتور',
+      confirmColor: isRefund ? AppColors.warning : AppColors.error,
+    );
+    if (confirmed != true) return;
+    try {
+      await ref
+          .read(invoiceRepositoryProvider)
+          .updateStatus(invoice.id, status);
+      ref.invalidate(invoiceByIdProvider(invoice.id));
+      ref.invalidate(todaySalesTotalProvider);
+      ref.invalidate(reportDataProvider);
+      ref.invalidate(weeklySalesProvider);
+      ref.invalidate(lowStockProductsProvider);
+      ref.invalidate(totalDebtAmountProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(isRefund ? 'مرجوعی ثبت شد' : 'فاکتور لغو شد'),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('انجام عملیات ناموفق بود: $error'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
   }
 
   /// هدر فاکتور: شماره، تاریخ، نام مشتری، روش پرداخت
@@ -179,9 +257,11 @@ class _InvoiceDetailBody extends ConsumerWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Text(
                     invoice.status.label,
@@ -527,7 +607,7 @@ class _InvoiceDetailBody extends ConsumerWidget {
   }
 
   /// اشتراک‌گذاری متن ساده فاکتور
-  void _shareInvoice(BuildContext context, Invoice invoice) {
+  Future<void> _shareInvoice(BuildContext context, Invoice invoice) async {
     final buffer = StringBuffer();
     buffer.writeln('=== ${AppStrings.appName} ===');
     buffer.writeln('شماره فاکتور: ${invoice.invoiceNumber}');
@@ -561,10 +641,10 @@ class _InvoiceDetailBody extends ConsumerWidget {
     buffer.writeln(AppStrings.receiptThankYou);
 
     // اشتراک‌گذاری متن از طریق share_plus
-    Share.share(
-      buffer.toString(),
+    await SharePlus.instance.share(ShareParams(
+      text: buffer.toString(),
       subject: 'فاکتور ${invoice.invoiceNumber}',
-    );
+    ));
   }
 
   /// آیکون روش پرداخت

@@ -1,7 +1,7 @@
 name: shop_crm
-description: فروشگاه هوشمند - سیستم مدیریت فروشگاه
+description: NEXOCRM - سیستم مدیریت فروشگاه
 publish_to: 'none'
-version: 1.0.5+6
+version: 1.0.2+7
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -56,12 +56,14 @@ dependencies:
   cached_network_image: ^3.3.1
 
   # اعلان
-  flutter_local_notifications: ^17.2.2
+  flutter_local_notifications: ^19.5.0
 
   # خروجی
   excel: ^4.0.2
   file_selector_platform_interface: ^2.7.0
+  file_selector: ^1.0.3
   share_plus: ^12.0.2
+  url_launcher: ^6.3.2
   window_manager: ^0.5.2
 
   # احراز هویت بیومتریک
@@ -82,6 +84,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_secure_storage_platform_interface: ^1.1.2
+  path_provider_platform_interface: ^2.1.2
 
   # کد جنریشن
   build_runner: ^2.10.4
@@ -91,6 +94,7 @@ dev_dependencies:
 
   # آیکون برنامه
   flutter_launcher_icons: ^0.13.1
+  msix: ^3.18.0
 
 flutter:
   uses-material-design: true
@@ -116,3 +120,17 @@ flutter:
           weight: 800
         - asset: assets/fonts/Vazirmatn-Black.ttf
           weight: 900
+
+msix_config:
+  display_name: NEXOCRM
+  publisher_display_name: MLD TECH
+  identity_name: MiladMousaei.ShopCRM
+  publisher: CN=ShopCRM
+  msix_version: 1.0.2.0
+  logo_path: android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+  capabilities: internetClient,bluetooth,privateNetworkClientServer
+  languages: fa-ir
+  store: false
+  install_certificate: false
+  output_path: build/windows/msix
+  output_name: NEXOCRM-Setup

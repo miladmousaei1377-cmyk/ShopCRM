@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/models/invoice.dart';
@@ -7,6 +6,7 @@ import '../../services/printer/bluetooth_printer_service.dart';
 import '../../services/printer/escpos_builder.dart';
 import '../../services/printer/wifi_printer_service.dart';
 import '../../services/printer/usb_printer_service.dart';
+import '../../core/constants/app_strings.dart';
 
 enum PrinterType { bluetooth, wifi, usb }
 
@@ -28,7 +28,7 @@ class PrinterSettings {
     this.wifiIp = '192.168.1.100',
     this.wifiPort = 9100,
     this.usbPrinterName = '',
-    this.storeName = 'فروشگاه هوشمند',
+    this.storeName = AppStrings.appName,
     this.storePhone = '',
     this.storeAddress = '',
   });
@@ -118,7 +118,7 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
         wifiIp: prefs.getString('wifi_ip') ?? '192.168.1.100',
         wifiPort: prefs.getInt('wifi_port') ?? 9100,
         usbPrinterName: prefs.getString('usb_printer_name') ?? '',
-        storeName: prefs.getString('store_name') ?? 'فروشگاه هوشمند',
+        storeName: prefs.getString('store_name') ?? AppStrings.appName,
         storePhone: prefs.getString('store_phone') ?? '',
         storeAddress: prefs.getString('store_address') ?? '',
       ),
@@ -201,6 +201,9 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
       final wifiService = _service as WiFiPrinterService;
       // دسترسی مستقیم به socket از طریق printRaw
       await wifiService.printRaw(bytes);
+    } else if (_service is UsbPrinterService) {
+      final bytes = EscPosBuilder.buildTestPrint(state.settings.storeName);
+      await (_service as UsbPrinterService).printRaw(bytes);
     }
     // بلوتوث: پیاده‌سازی در BluetoothPrinterService
   }

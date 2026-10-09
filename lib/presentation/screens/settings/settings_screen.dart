@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
@@ -12,6 +13,7 @@ import '../../../services/backup_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/sync_provider.dart';
 import '../../widgets/common/app_header_back_button.dart';
+import '../../widgets/common/application_about_dialog.dart';
 import '../../widgets/common/confirm_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -104,6 +106,7 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.info_outline,
                   title: 'درباره اپلیکیشن',
                   subtitle: '${AppStrings.appName} - ${AppStrings.appVersion}',
+                  onTap: () => showApplicationAboutDialog(context),
                 ),
                 const Divider(height: 1),
                 _SettingsTile(
@@ -121,6 +124,7 @@ class SettingsScreen extends ConsumerWidget {
                     );
                     if (confirmed == true && context.mounted) {
                       await ref.read(authProvider.notifier).logout();
+                      if (!context.mounted) return;
                       context.go('/login');
                     }
                   },
@@ -401,11 +405,12 @@ class _BiometricTileState extends State<_BiometricTile> {
   Future<void> _load() async {
     final available = await BiometricService.isAvailable();
     final enabled = await BiometricService.isEnabled();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _available = available;
         _enabled = enabled;
       });
+    }
   }
 
   Future<void> _toggle(bool value) async {
@@ -430,7 +435,7 @@ class _BiometricTileState extends State<_BiometricTile> {
   @override
   Widget build(BuildContext context) {
     if (!_available) {
-      return _SettingsTile(
+      return const _SettingsTile(
         icon: Icons.fingerprint,
         iconColor: AppColors.textHint,
         title: 'ورود با اثر انگشت',
@@ -445,7 +450,7 @@ class _BiometricTileState extends State<_BiometricTile> {
       trailing: Switch(
         value: _enabled,
         onChanged: _toggle,
-        activeColor: AppColors.success,
+        activeThumbColor: AppColors.success,
       ),
     );
   }
@@ -489,6 +494,7 @@ class _BackupSectionState extends State<_BackupSection> {
       setState(() => _isLoading = false);
       if (file != null) {
         await _load();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('بکاپ با موفقیت ایجاد شد',
               style: TextStyle(fontFamily: 'Vazirmatn')),
@@ -507,6 +513,48 @@ class _BackupSectionState extends State<_BackupSection> {
   Future<void> _toggleAuto(bool value) async {
     await BackupService.setAutoEnabled(value);
     if (mounted) setState(() => _autoEnabled = value);
+  }
+
+  Future<void> _restoreBackup() async {
+    final selected = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'پشتیبان NEXOCRM', extensions: ['zip']),
+      ],
+    );
+    if (selected == null || !mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('بازیابی پشتیبان'),
+          content: const Text(
+            'ابتدا یک بکاپ ایمنی ساخته می‌شود. سپس اطلاعات فایل انتخابی '
+            'بازیابی و برنامه به‌صورت خودکار دوباره اجرا خواهد شد. ادامه می‌دهید؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('انصراف'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('بازیابی'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _isLoading = true);
+    final restored = await BackupService.restoreBackup(File(selected.path));
+    if (mounted && !restored) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('فایل پشتیبان معتبر نیست یا بازیابی ناموفق بود'),
+        backgroundColor: AppColors.error,
+      ));
+    }
   }
 
   @override
@@ -530,6 +578,16 @@ class _BackupSectionState extends State<_BackupSection> {
         ),
         const Divider(height: 1),
         _SettingsTile(
+          icon: Icons.restore_outlined,
+          title: 'بازیابی پشتیبان',
+          subtitle: 'بازیابی امن دیتابیس و تصاویر از فایل ZIP',
+          trailing: TextButton(
+            onPressed: _isLoading ? null : _restoreBackup,
+            child: const Text('انتخاب فایل'),
+          ),
+        ),
+        const Divider(height: 1),
+        _SettingsTile(
           icon: Icons.schedule,
           iconColor: _autoEnabled ? AppColors.success : AppColors.primary,
           title: 'بکاپ خودکار',
@@ -538,7 +596,7 @@ class _BackupSectionState extends State<_BackupSection> {
           trailing: Switch(
             value: _autoEnabled,
             onChanged: _toggleAuto,
-            activeColor: AppColors.success,
+            activeThumbColor: AppColors.success,
           ),
         ),
       ],
@@ -655,7 +713,8 @@ class _ProfileSectionState extends State<_ProfileSection> {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = _storeName.isNotEmpty ? _storeName : 'فروشگاه هوشمند';
+    final displayName =
+        _storeName.isNotEmpty ? _storeName : AppStrings.appName;
     final displayOwner = _ownerName.isNotEmpty ? _ownerName : 'تنظیم نشده';
 
     return InkWell(
@@ -750,7 +809,9 @@ class _PosSettingsTileState extends State<_PosSettingsTile> {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _posMode = prefs.getString('pos_mode') ?? 'manual';
+        // اتصال واقعی پوز هنوز پیاده‌سازی نشده است؛ مقدار قدیمی auto نیز
+        // عمداً به حالت دستی برگردانده می‌شود تا پرداخت جعلی انجام نشود.
+        _posMode = 'manual';
         _posPort = prefs.getString('pos_port') ?? 'COM1';
       });
     }
@@ -758,7 +819,7 @@ class _PosSettingsTileState extends State<_PosSettingsTile> {
 
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('pos_mode', _posMode);
+    await prefs.setString('pos_mode', 'manual');
     await prefs.setString('pos_port', _posPort);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -791,28 +852,34 @@ class _PosSettingsTileState extends State<_PosSettingsTile> {
                         fontSize: 13,
                         color: AppColors.textSecondary)),
                 const SizedBox(height: 8),
-                Row(
+                const Row(
                   children: [
-                    Radio<String>(
-                      value: 'manual',
-                      groupValue: tempMode,
-                      onChanged: (v) => setSt(() => tempMode = v!),
+                    SizedBox(
+                      width: 48,
+                      child: Icon(
+                        Icons.radio_button_checked,
+                        color: AppColors.primary,
+                      ),
                     ),
-                    const Text('دستی (شماره پیگیری)',
+                    Text('دستی (شماره پیگیری)',
                         style:
                             TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
                   ],
                 ),
-                Row(
+                const Row(
                   children: [
-                    Radio<String>(
-                      value: 'auto',
-                      groupValue: tempMode,
-                      onChanged: (v) => setSt(() => tempMode = v!),
+                    SizedBox(
+                      width: 48,
+                      child: Icon(
+                        Icons.radio_button_unchecked,
+                        color: AppColors.textHint,
+                      ),
                     ),
-                    const Text('اتوماتیک (پورت سریال)',
+                    Expanded(
+                      child: Text('اتوماتیک (غیرفعال تا اتصال واقعی)',
                         style:
                             TextStyle(fontFamily: 'Vazirmatn', fontSize: 13)),
+                    ),
                   ],
                 ),
                 if (tempMode == 'auto') ...[
@@ -824,7 +891,7 @@ class _PosSettingsTileState extends State<_PosSettingsTile> {
                           color: AppColors.textSecondary)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: tempPort,
+                    initialValue: tempPort,
                     items: _portOptions
                         .map((p) => DropdownMenuItem(
                             value: p,
@@ -878,7 +945,7 @@ class _PosSettingsTileState extends State<_PosSettingsTile> {
 
   @override
   Widget build(BuildContext context) {
-    final modeLabel = _posMode == 'manual' ? 'دستی' : 'اتوماتیک - $_posPort';
+    const modeLabel = 'دستی — حالت اتوماتیک فعلاً غیرفعال است';
     return _SettingsTile(
       icon: Icons.credit_card,
       iconColor: const Color(0xFF00695C),

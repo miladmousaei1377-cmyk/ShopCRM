@@ -1,9 +1,8 @@
-/// Provider های مربوط به مشتریان
+// Provider های مربوط به مشتریان
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/customer.dart';
 import '../../domain/models/invoice.dart';
 import 'cart_provider.dart';
-import 'invoice_provider.dart';
 
 /// جستجو در لیست مشتریان
 final customerSearchQueryProvider = StateProvider<String>((ref) => '');

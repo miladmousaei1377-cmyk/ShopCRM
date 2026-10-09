@@ -9,9 +9,13 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/models/invoice.dart';
 import '../../../domain/models/product.dart';
 import '../../../domain/models/customer.dart';
+import '../../../services/log_service.dart';
+import '../../../services/notification_service.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/customer_provider.dart';
+import '../../providers/invoice_provider.dart';
 import '../../providers/product_provider.dart';
+import '../../providers/report_provider.dart';
 import '../../providers/printer_provider.dart';
 import '../../widgets/common/app_header_back_button.dart';
 import '../../widgets/common/loading_overlay.dart';
@@ -221,6 +225,7 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
       builder: (_) => _DiscountSheet(
         currentDiscount: ref.read(cartProvider).discount,
         isPercent: ref.read(cartProvider).isDiscountPercent,
+        totalAmount: ref.read(cartProvider).totalAmount,
         onApply: (value, isPercent) {
           ref
               .read(cartProvider.notifier)
@@ -233,6 +238,8 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
 
   /// ثبت فاکتور + نمایش دیالوگ موفقیت با گزینه‌های بستن یا چاپ
   Future<void> _submitInvoice() async {
+    final soldProductIds =
+        ref.read(cartProvider).items.map((item) => item.productId).toSet();
     final id = await ref.read(cartProvider.notifier).submitInvoice();
 
     if (id == null) {
@@ -244,6 +251,30 @@ class _NewInvoiceScreenState extends ConsumerState<NewInvoiceScreen> {
         ));
       }
       return;
+    }
+
+    ref.invalidate(todaySalesTotalProvider);
+    ref.invalidate(reportDataProvider);
+    ref.invalidate(weeklySalesProvider);
+    ref.invalidate(lowStockProductsProvider);
+    ref.invalidate(totalDebtAmountProvider);
+    for (final productId in soldProductIds) {
+      final product =
+          await ref.read(productRepositoryProvider).findById(productId);
+      if (product != null && product.isLowStock) {
+        try {
+          await NotificationService.showLowStockAlert(
+            product.name,
+            product.stockQuantity,
+          );
+        } catch (error, stack) {
+          await LogService.error(
+            'نمایش اعلان کمبود موجودی ناموفق بود',
+            error,
+            stack,
+          );
+        }
+      }
     }
 
     Invoice? invoice;
@@ -468,14 +499,14 @@ class _CartEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.shopping_cart_outlined,
+          Icon(Icons.shopping_cart_outlined,
               size: 52, color: AppColors.textHint),
-          const SizedBox(height: 12),
-          const Text(
+          SizedBox(height: 12),
+          Text(
             'سبد خرید خالی است',
             style: TextStyle(
               fontFamily: 'Vazirmatn',
@@ -483,8 +514,8 @@ class _CartEmpty extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
+          SizedBox(height: 6),
+          Text(
             'بارکد اسکن کنید یا محصول را جستجو کنید',
             style: TextStyle(
               fontFamily: 'Vazirmatn',
@@ -597,7 +628,7 @@ class _PaymentMethodRow extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
                 color: selected
-                    ? _methodColor(method).withOpacity(0.15)
+                    ? _methodColor(method).withValues(alpha: 0.15)
                     : AppColors.background,
                 border: Border.all(
                   color: selected ? _methodColor(method) : AppColors.border,
@@ -689,10 +720,12 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
                 padding:
                     const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.posColor.withOpacity(0.08),
+                  color: AppColors.posColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                   border:
-                      Border.all(color: AppColors.posColor.withOpacity(0.3)),
+                      Border.all(
+                        color: AppColors.posColor.withValues(alpha: 0.3),
+                      ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -748,26 +781,23 @@ class _PosPaymentDialogState extends State<_PosPaymentDialog> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _isManual = false),
+                    child: Opacity(
+                      opacity: 0.55,
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: !_isManual
-                              ? AppColors.posColor
-                              : Colors.transparent,
+                          color: Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: AppColors.posColor),
                         ),
-                        child: Text(
-                          'اتوماتیک',
+                        child: const Text(
+                          'اتوماتیک (غیرفعال)',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: 'Vazirmatn',
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color:
-                                !_isManual ? Colors.white : AppColors.posColor,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ),
@@ -1222,11 +1252,13 @@ class _CustomerPickerSheetState extends ConsumerState<_CustomerPickerSheet> {
 class _DiscountSheet extends StatefulWidget {
   final double currentDiscount;
   final bool isPercent;
+  final double totalAmount;
   final void Function(double value, bool isPercent) onApply;
 
   const _DiscountSheet({
     required this.currentDiscount,
     required this.isPercent,
+    required this.totalAmount,
     required this.onApply,
   });
 
@@ -1237,6 +1269,7 @@ class _DiscountSheet extends StatefulWidget {
 class _DiscountSheetState extends State<_DiscountSheet> {
   late TextEditingController _ctrl;
   late bool _isPercent;
+  String? _error;
 
   @override
   void initState() {
@@ -1302,6 +1335,7 @@ class _DiscountSheetState extends State<_DiscountSheet> {
                 labelText: _isPercent ? 'درصد تخفیف' : 'مبلغ تخفیف',
                 hintStyle: const TextStyle(fontFamily: 'Vazirmatn'),
                 suffixText: _isPercent ? '٪' : 'تومان',
+                errorText: _error,
               ),
             ),
             const SizedBox(height: 16),
@@ -1311,6 +1345,16 @@ class _DiscountSheetState extends State<_DiscountSheet> {
                         CurrencyFormatter.toEnglishNumber(_ctrl.text)
                             .replaceAll(',', '')) ??
                     0;
+                if (v < 0 ||
+                    (_isPercent && v >= 100) ||
+                    (!_isPercent && v >= widget.totalAmount)) {
+                  setState(() {
+                    _error = _isPercent
+                        ? 'درصد تخفیف باید بین صفر و کمتر از ۱۰۰ باشد'
+                        : 'مبلغ تخفیف باید کمتر از جمع فاکتور باشد';
+                  });
+                  return;
+                }
                 widget.onApply(v, _isPercent);
               },
               child: const Text('اعمال تخفیف',

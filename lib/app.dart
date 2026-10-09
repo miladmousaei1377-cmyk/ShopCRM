@@ -25,6 +25,7 @@ import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/settings/printer_settings_screen.dart';
 import 'presentation/screens/reports/reports_screen.dart';
 import 'presentation/screens/accounting/accounting_screen.dart';
+import 'presentation/widgets/common/application_about_dialog.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -224,14 +225,6 @@ Future<bool> showExitConfirmation(BuildContext context) async =>
     ) ??
     false;
 
-void showApplicationAboutDialog(BuildContext context) => showAboutDialog(
-      context: context,
-      applicationName: AppStrings.appName,
-      applicationVersion: AppStrings.appVersion,
-      applicationIcon: const Icon(Icons.storefront, size: 40),
-      children: const [Text('سامانه محلی مدیریت فروشگاه و مشتریان')],
-    );
-
 // ─── Shell ریسپانسیو ──────────────────────────────────────────────────────────
 
 class _AppShell extends ConsumerStatefulWidget {
@@ -377,15 +370,19 @@ class _AppShellState extends ConsumerState<_AppShell>
 
   int _mobileIndexFromLocation(String loc) {
     for (int i = 0; i < _mobileRoutes.length; i++) {
-      if (loc == _mobileRoutes[i] || loc.startsWith('${_mobileRoutes[i]}/'))
+      if (loc == _mobileRoutes[i] ||
+          loc.startsWith('${_mobileRoutes[i]}/')) {
         return i;
+      }
     }
     return 4; // «بیشتر»
   }
 
   int _desktopIndexFromLocation(String loc) {
     for (int i = 0; i < _routes.length; i++) {
-      if (loc == _routes[i] || loc.startsWith('${_routes[i]}/')) return i;
+      if (loc == _routes[i] || loc.startsWith('${_routes[i]}/')) {
+        return i;
+      }
     }
     return 0;
   }

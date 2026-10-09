@@ -1,5 +1,5 @@
-/// صفحه جزئیات مشتری
-/// نمایش اطلاعات کامل، بدهی، سقف اعتبار و تاریخچه خرید
+// صفحه جزئیات مشتری
+// نمایش اطلاعات کامل، بدهی، سقف اعتبار و تاریخچه خرید
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +9,6 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_converter.dart';
 import '../../../domain/models/customer.dart';
 import '../../../domain/models/invoice.dart';
-import '../../../domain/models/product.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/ledger_provider.dart';
 import '../../widgets/common/app_header_back_button.dart';
@@ -437,12 +436,12 @@ class _CustomerDetailBody extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // عنوان بخش
-        Row(
+        const Row(
           children: [
-            const Icon(Icons.history_outlined,
+            Icon(Icons.history_outlined,
                 color: AppColors.primary, size: 20),
-            const SizedBox(width: 8),
-            const Text(
+            SizedBox(width: 8),
+            Text(
               AppStrings.purchaseHistory,
               style: TextStyle(
                 fontFamily: 'Vazirmatn',
@@ -555,7 +554,7 @@ class _InvoiceHistoryTile extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: paymentColor.withOpacity(0.1),
+                color: paymentColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -618,7 +617,7 @@ class _InvoiceHistoryTile extends StatelessWidget {
                     color: isDebtSettled &&
                             invoice.paymentMethod == PaymentMethod.credit
                         ? AppColors.successLight
-                        : paymentColor.withOpacity(0.1),
+                        : paymentColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -786,7 +785,8 @@ class _DebtPaymentDialogState extends ConsumerState<_DebtPaymentDialog> {
                           style: const TextStyle(
                               fontFamily: 'Vazirmatn', fontSize: 13)),
                       selected: _method == m,
-                      selectedColor: AppColors.success.withOpacity(0.18),
+                      selectedColor:
+                          AppColors.success.withValues(alpha: 0.18),
                       onSelected: (_) => setState(() => _method = m),
                     ),
                   )

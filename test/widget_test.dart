@@ -1,5 +1,5 @@
-/// تست‌های پایه برای اطمینان از اجرا شدن برنامه
-/// تست‌های جامع‌تر در test/utils/ و test/models/ قرار دارند
+// تست‌های پایه برای اطمینان از اجرا شدن برنامه
+// تست‌های جامع‌تر در test/utils/ و test/models/ قرار دارند
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +12,7 @@ import 'package:drift/native.dart';
 import 'package:shop_crm/core/utils/currency_formatter.dart';
 import 'package:shop_crm/core/utils/date_converter.dart';
 import 'package:shop_crm/core/constants/app_colors.dart';
+import 'package:shop_crm/core/constants/app_strings.dart';
 import 'package:shop_crm/data/repositories/report_repository.dart';
 import 'package:shop_crm/data/local/database.dart';
 import 'package:shop_crm/domain/models/ledger_entry.dart';
@@ -24,10 +25,50 @@ import 'package:shop_crm/presentation/screens/invoice/new_invoice_screen.dart';
 import 'package:shop_crm/presentation/screens/reports/reports_screen.dart';
 import 'package:shop_crm/presentation/providers/report_provider.dart';
 import 'package:shop_crm/presentation/widgets/common/app_header_back_button.dart';
+import 'package:shop_crm/presentation/widgets/common/application_about_dialog.dart';
 import 'package:shop_crm/presentation/widgets/common/confirm_dialog.dart';
 import 'package:shop_crm/app.dart';
 
 void main() {
+  test('نام نمایشی برنامه NEXOCRM و نسخه ۱.۰.۲ است', () {
+    expect(AppStrings.appName, 'NEXOCRM');
+    expect(AppStrings.appVersion, 'نسخه ۱.۰.۲');
+    expect(
+      applicationInstagramUri,
+      Uri.parse('https://www.instagram.com/mld.tech1/'),
+    );
+    expect(
+      applicationEmailUri,
+      Uri.parse('mailto:mldtech1.official@gmail.com'),
+    );
+  });
+
+  testWidgets('درباره برنامه اطلاعات توسعه‌دهنده و راه‌های ارتباطی را نشان می‌دهد',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () => showApplicationAboutDialog(context),
+          child: const Text('درباره'),
+        ),
+      ),
+    ));
+
+    await tester.tap(find.text('درباره'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('NEXOCRM'), findsOneWidget);
+    expect(find.text('طراحی و توسعه توسط MLD TECH'), findsOneWidget);
+    expect(find.text('اینستاگرام: mld.tech1'), findsOneWidget);
+    expect(find.text('ایمیل: mldtech1.official@gmail.com'), findsOneWidget);
+    expect(find.byKey(const ValueKey('about-instagram-link')), findsOneWidget);
+    expect(find.byKey(const ValueKey('about-email-link')), findsOneWidget);
+    expect(find.byKey(const ValueKey('about-close-button')), findsOneWidget);
+    expect(find.text('بستن'), findsOneWidget);
+    expect(find.text('Close'), findsNothing);
+    expect(find.text('View licenses'), findsNothing);
+  });
+
   test('CurrencyFormatter: فرمت پایه کار می‌کند', () {
     expect(CurrencyFormatter.format(0), '۰ تومان');
     expect(CurrencyFormatter.format(1000), '۱,۰۰۰ تومان');

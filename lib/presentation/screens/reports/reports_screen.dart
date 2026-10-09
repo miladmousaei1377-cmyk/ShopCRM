@@ -5,7 +5,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_converter.dart';
-import '../../../data/repositories/report_repository.dart';
 import '../../../services/pdf_service.dart';
 import '../../../services/excel_service.dart';
 import '../../providers/report_provider.dart';
@@ -39,7 +38,6 @@ class ReportsScreen extends ConsumerWidget {
 
   Future<void> _exportExcel(BuildContext context, WidgetRef ref) async {
     final report = ref.read(reportDataProvider);
-    final params = ref.read(reportParamsProvider);
     if (!report.hasValue || report.value == null) return;
     try {
       await ExcelService.exportSalesReport(report.value!);
@@ -332,7 +330,7 @@ class _DateButton extends StatelessWidget {
         if (picked != null) onPick(picked.toDateTime());
       },
       child: Text(
-        '${label}\n${DateConverter.toShamsi(date)}',
+        '$label\n${DateConverter.toShamsi(date)}',
         style: const TextStyle(fontFamily: 'Vazirmatn', fontSize: 12),
         textAlign: TextAlign.center,
       ),
@@ -359,7 +357,7 @@ class _SummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.8)],
+          colors: [color, color.withValues(alpha: 0.8)],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
